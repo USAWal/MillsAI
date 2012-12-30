@@ -29,8 +29,8 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="2.8"
-     inkscape:cx="438.0207"
-     inkscape:cy="181.00818"
+     inkscape:cx="73.054697"
+     inkscape:cy="509.57961"
      inkscape:document-units="px"
      inkscape:current-layer="layer3"
      showgrid="true"
@@ -272,9 +272,7 @@
     <g
        id="g5559"
        transform="translate(-135,-85)"
-       onload="reset_piece(this, 0)"
-       onmouseover="board.turn_light_on(this)"
-       onmouseout="board.turn_light_off(this)">
+       onload="board.bind(this, 0)">
       <g
          transform="translate(55,30)"
          id="g5477">
@@ -843,9 +841,7 @@ RK5CYII=
     <g
        id="g5559-7"
        transform="translate(55,-85)"
-       onload="reset_piece(this, 1)"
-       onmouseover="board.turn_light_on(this)"
-       onmouseout="board.turn_light_off(this)">
+       onload="board.bind(this, 1)">
       <g
          transform="translate(55,30)"
          id="g5477-3">
@@ -889,9 +885,7 @@ RK5CYII=
     <g
        id="g5559-0"
        transform="translate(245,-85)"
-       onload="reset_piece(this, 2)"
-       onmouseover="board.turn_light_on(this)"
-       onmouseout="board.turn_light_off(this)">
+       onload="board.bind(this, 2)">
       <g
          transform="translate(55,30)"
          id="g5477-0">
@@ -935,9 +929,7 @@ RK5CYII=
     <g
        id="g5559-1"
        transform="translate(-135,105)"
-       onload="reset_piece(this, 3)"
-       onmouseover="board.turn_light_on(this)"
-       onmouseout="board.turn_light_off(this)">
+       onload="board.bind(this, 3)">
       <g
          transform="translate(55,30)"
          id="g5477-2">
@@ -981,9 +973,7 @@ RK5CYII=
     <g
        id="g5559-5"
        transform="translate(55,105)"
-       onload="reset_piece(this, 4)"
-       onmouseover="board.turn_light_on(this)"
-       onmouseout="board.turn_light_off(this)">
+       onload="board.bind(this, 4)">
       <g
          transform="translate(55,30)"
          id="g5477-6">
@@ -1027,9 +1017,7 @@ RK5CYII=
     <g
        id="g5559-3"
        transform="translate(245,105)"
-       onload="reset_piece(this, 5)"
-       onmouseover="board.turn_light_on(this)"
-       onmouseout="board.turn_light_off(this)">
+       onload="board.bind(this, 5)">
       <g
          transform="translate(55,30)"
          id="g5477-27">
@@ -1073,9 +1061,7 @@ RK5CYII=
     <g
        id="g5559-32"
        transform="translate(-135,295)"
-       onload="reset_piece(this, 6)"
-       onmouseover="board.turn_light_on(this)"
-       onmouseout="board.turn_light_off(this)">
+       onload="board.bind(this, 6)">
       <g
          transform="translate(55,30)"
          id="g5477-273">
@@ -1119,9 +1105,7 @@ RK5CYII=
     <g
        id="g5559-74"
        transform="translate(55,295)"
-       onload="reset_piece(this, 7)"
-       onmouseover="board.turn_light_on(this)"
-       onmouseout="board.turn_light_off(this)">
+       onload="board.bind(this, 7)">
       <g
          transform="translate(55,30)"
          id="g5477-5">
@@ -1165,9 +1149,7 @@ RK5CYII=
     <g
        id="g5559-4"
        transform="translate(245,295)"
-       onload="reset_piece(this, 8)"
-       onmouseover="board.turn_light_on(this)"
-       onmouseout="board.turn_light_off(this)">
+       onload="board.bind(this, 8)">
       <g
          transform="translate(55,30)"
          id="g5477-08">
