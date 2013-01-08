@@ -46,6 +46,7 @@ public class Ai {
 			}
 		}
 		
+		losses_with_mills = losses;
 		Set<Board> newLosses = getLosses(draws, losses);
 		draws.removeAll(newLosses);
 		losses = newLosses;
@@ -89,10 +90,12 @@ public class Ai {
 			wins.addAll(toWins);
 		} while(toWins.size() > 0);
 		
-		//data.addBoard(wins);
-		//data.addBoard(draws);
-		//data.addBoard(losses);
-		
+		/*data.addBoard(wins);
+		data.addBoard(draws);
+		data.addBoard(losses);
+		getMove(new Board(new int[] {0,0,0,0,0,0,0,0,0}), true);
+		getMove(new Board(new int[] {0,0,0,0,0,0,0,0,0}), false);
+		*/
 		System.out.println("Finish");
 	}
 	
@@ -123,8 +126,10 @@ public class Ai {
 	
 	public Board getMove(Board board, boolean isMax) {
 		IntersectionType type = isMax ? IntersectionType.OCCUPIED_BY_ME : IntersectionType.OCCUPIED_BY_OPPONENT;
-		if(9 - board.getNumberOf(IntersectionType.UNOCCUPIED) > 4) {
+		if(board.getNumberOf(IntersectionType.UNOCCUPIED) < 5) {
 			List<Board> boards = data.getBoardsByState(isMax ? BoardState.WIN : BoardState.LOSS);
+			if(!isMax && board.getNumberOf(IntersectionType.UNOCCUPIED) == 4)
+				boards.addAll(losses_with_mills);
 			if(!boards.isEmpty()) {
 				List<Board> result = getAppropriateMovement(board, boards, type);
 				if(isMax) {
@@ -134,12 +139,14 @@ public class Ai {
 							wins.add(to);
 					if(!wins.isEmpty()) result = wins;
 				}
+				System.out.println(result.size());
 				if(!result.isEmpty()) return result.get(random.nextInt(result.size()));
 			}
 			
 			boards = data.getBoardsByState(BoardState.DRAW);
 			if(!boards.isEmpty()) {
 				List<Board> result = getAppropriateMovement(board, boards, type);
+				System.out.println(result.size());
 				if(!result.isEmpty()) return result.get(random.nextInt(result.size()));
 			}
 			
@@ -153,6 +160,7 @@ public class Ai {
 							wins.add(to);
 					if(wins.size() < result.size()) result.removeAll(wins);					
 				}
+				System.out.println(result.size());
 				if(!result.isEmpty()) return result.get(random.nextInt(result.size()));
 			}
 			
@@ -169,6 +177,8 @@ public class Ai {
 				boards.add(variant);
 			}
 		}
+		//if(isMax)
+			//data.addBoard(new HashSet<Board>(boards));
 		List<Board> wins = new ArrayList<Board>();
 		List<Board> losses = new ArrayList<Board>();
 		List<Board> draws = new ArrayList<Board>();
@@ -226,6 +236,7 @@ public class Ai {
 		return false;
 	}
 	
+	private Set<Board> losses_with_mills;
 	private Set<Board> wins;
 	private Set<Board> losses;
 	private Set<Board> draws;
