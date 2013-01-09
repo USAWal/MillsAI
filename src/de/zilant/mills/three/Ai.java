@@ -82,18 +82,26 @@ public class Ai {
 		
 		Set<Board> filteredLosses = getWins(losses, wins);
 		losses.removeAll(filteredLosses);
-		toWins.addAll(filteredLosses);
 		
 		Set<Board> onlyToWins = new HashSet<Board>();
+		
+		for(Board win : toWins)
+			if(isReachable(win, toWins, true) && !isReachable(win, losses, true) && !isReachable(win, draws, true)) {
+				win.setState(BoardState.IMMEDIATE_WIN);
+				onlyToWins.add(win);
+			}
+		
+		
 		for(Board draw : draws) {
-			if(isReachable(draw, toWins, true) && !isReachable(draw, losses, true) && !isReachable(draw, draws, true)) {
+			if((isReachable(draw, toWins, true) || isReachable(draw, filteredLosses, true)) && !isReachable(draw, losses, true) && !isReachable(draw, draws, true)) {
 				draw.setState(BoardState.IMMEDIATE_WIN);
 				onlyToWins.add(draw);
 			}
 		}
-		toWins.removeAll(filteredLosses);
 		losses.addAll(filteredLosses);
 		draws.addAll(toWins);
+		draws.removeAll(onlyToWins);
+		wins.addAll(onlyToWins);
 		
 		toWins = wins;
 		
@@ -101,8 +109,6 @@ public class Ai {
 			Set<Board> newWins = getWins(draws, toWins);
 			toWins = new HashSet<Board>(draws);
 			for(Board board : draws) {
-				if(board.getId() == 132198)
-					System.out.println("pause");
 				if(!isReachable(board, newWins, true))
 					toWins.remove(board);
 				else if(board.getState() != BoardState.IMMEDIATE_WIN)
@@ -111,8 +117,7 @@ public class Ai {
 			draws.removeAll(toWins);
 			wins.addAll(toWins);
 		} while(toWins.size() > 0);
-		wins.removeAll(onlyToWins);
-		wins.addAll(onlyToWins);
+
 		/*
 		data.addBoard(wins);
 		data.addBoard(draws);
