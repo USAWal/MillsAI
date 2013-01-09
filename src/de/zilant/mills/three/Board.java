@@ -14,10 +14,7 @@ public class Board {
 			values = values >> 2;
 		}
 		Board board = new Board(result);
-		BoardState state = BoardState.DRAW;
-		if(rawState == 1) state = BoardState.LOSS;
-		else if(rawState == 2) state = BoardState.WIN;
-		board.setState(state);
+		board.setState(BoardState.defineState(rawState));
 		return board;
 	}
 	

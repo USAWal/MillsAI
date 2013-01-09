@@ -56,12 +56,8 @@ public class Data {
 			protected Object job(SQLiteConnection connection) throws Throwable {
 				connection.exec(BEGIN_TRANSACTION);
 				try {
-					for(Board board : boards) {
-						int state = 0;
-						if(board.getState() == BoardState.LOSS) state = 1;
-						else if(board.getState() == BoardState.WIN) state = 2;
-						insert.reset().bind(1, board.getId()).bind(2, state).step();
-					}
+					for(Board board : boards)
+						insert.reset().bind(1, board.getId()).bind(2, board.getState().rawValue).step();
 				} finally {
 					connection.exec(END_TRANSACTION);
 				}
