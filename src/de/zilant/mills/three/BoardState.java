@@ -1,18 +1,20 @@
 package de.zilant.mills.three;
 
 public enum BoardState {
-	IMMEDIATE_WIN(2),
-	IMMEDIATE_LOSS(-2),
-	WIN(1),
-	LOSS(-1),
-	DRAW(0);
+	WIN(3),
+	ONLY_TO_WIN(2),
+	TO_WIN(1),
+	DRAW(0),
+	TO_LOSS(-1),
+	ONLY_TO_LOSS(-2);
 	
 	public static BoardState defineState(int rawState) {
 		switch (rawState) {
-		case -2: return IMMEDIATE_LOSS;
-		case -1: return LOSS;
-		case  1: return WIN;
-		case  2: return IMMEDIATE_WIN;
+		case -2: return ONLY_TO_LOSS;
+		case -1: return TO_LOSS;
+		case  1: return TO_WIN;
+		case  2: return ONLY_TO_WIN;
+		case  3: return WIN;
 		default: return DRAW;
 		}
 	}
@@ -24,5 +26,5 @@ public enum BoardState {
 	
 	public int rawValue;
 	
-	private static final String[] representations = new String[] {"IMMEDIATE LOSS", "LOSS", "DRAW", "WIN", "IMMEDIATE WIN"};
+	private static final String[] representations = new String[] {"ONLY TO LOSS", "TO LOSS", "DRAW", "TO WIN", "ONLY TO WIN", "WIN"};
 }

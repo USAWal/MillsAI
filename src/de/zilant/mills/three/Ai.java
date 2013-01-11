@@ -9,6 +9,8 @@ import java.util.ListIterator;
 import java.util.Random;
 import java.util.Set;
 
+import javax.management.ImmutableDescriptor;
+
 public class Ai {
 	
 	public Ai(Data data) {
@@ -36,10 +38,10 @@ public class Ai {
 				boolean haveIMill = board.hasMill(IntersectionType.OCCUPIED_BY_ME);
 				boolean hasOpponentMill = board.hasMill(IntersectionType.OCCUPIED_BY_OPPONENT);
 				if(haveIMill && !hasOpponentMill) {
-					board.setState(BoardState.IMMEDIATE_WIN);
+					board.setState(BoardState.WIN);
 					wins.add(board);
 				} else if(!haveIMill && hasOpponentMill) {
-					board.setState(BoardState.IMMEDIATE_LOSS);
+					board.setState(BoardState.ONLY_TO_LOSS);
 					losses.add(board);
 				} else if(!haveIMill && !hasOpponentMill)
 					draws.add(board);
@@ -48,7 +50,7 @@ public class Ai {
 		}
 		
 		losses_with_mills = losses;
-		Set<Board> newLosses = getLosses(draws, losses, BoardState.IMMEDIATE_LOSS);
+		Set<Board> newLosses = getLosses(draws, losses, BoardState.ONLY_TO_LOSS);
 		draws.removeAll(newLosses);
 		losses = newLosses;
 		
@@ -59,7 +61,7 @@ public class Ai {
 				if(isReachable(board, newLosses, false) && !isReachable(board, wins, false) && !isReachable(board, draws, false))
 					onlyToLosses.add(board);
 			
-			newLosses = getLosses(draws, onlyToLosses, BoardState.LOSS);
+			newLosses = getLosses(draws, onlyToLosses, BoardState.TO_LOSS);
 			draws.removeAll(newLosses);
 			losses.addAll(newLosses);
 			continueSearch = newLosses.size() > 0;
@@ -68,7 +70,7 @@ public class Ai {
 			for(Board board : losses)
 				if(isReachable(board, losses, false) && !isReachable(board, wins, false) && !isReachable(board, draws, false))
 					onlyToLosses.add(board);
-			onlyToLosses = getLosses(draws, onlyToLosses, BoardState.LOSS);
+			onlyToLosses = getLosses(draws, onlyToLosses, BoardState.TO_LOSS);
 			newLosses.addAll(onlyToLosses);
 			draws.removeAll(onlyToLosses);
 			losses.addAll(onlyToLosses);
@@ -77,31 +79,36 @@ public class Ai {
 		} while(continueSearch);
 		
 		
-		Set<Board> toWins = getWins(draws, wins);
-		draws.removeAll(toWins);
-		
-		Set<Board> filteredLosses = getWins(losses, wins);
-		losses.removeAll(filteredLosses);
-		
-		Set<Board> onlyToWins = new HashSet<Board>();
-		
-		for(Board win : toWins)
-			if(isReachable(win, toWins, true) && !isReachable(win, losses, true) && !isReachable(win, draws, true)) {
-				win.setState(BoardState.IMMEDIATE_WIN);
-				onlyToWins.add(win);
+		Set<Board> toWins = null;
+		Set<Board> onlyToWins = null;
+		do {
+			toWins = getWins(draws, wins);
+			draws.removeAll(toWins);
+			
+			Set<Board> filteredLosses = getWins(losses, wins);
+			losses.removeAll(filteredLosses);
+			
+			onlyToWins = new HashSet<Board>();
+			
+			for(Board win : toWins)
+				if(isReachable(win, toWins, true) && !isReachable(win, losses, true) && !isReachable(win, draws, true)) {
+					win.setState(BoardState.ONLY_TO_WIN);
+					onlyToWins.add(win);
+				}
+			
+			
+			for(Board draw : draws) {
+				if((isReachable(draw, toWins, true) || isReachable(draw, filteredLosses, true)) && !isReachable(draw, losses, true) && !isReachable(draw, draws, true)) {
+					draw.setState(BoardState.ONLY_TO_WIN);
+					onlyToWins.add(draw);
+				}
 			}
-		
-		
-		for(Board draw : draws) {
-			if((isReachable(draw, toWins, true) || isReachable(draw, filteredLosses, true)) && !isReachable(draw, losses, true) && !isReachable(draw, draws, true)) {
-				draw.setState(BoardState.IMMEDIATE_WIN);
-				onlyToWins.add(draw);
-			}
-		}
-		losses.addAll(filteredLosses);
-		draws.addAll(toWins);
-		draws.removeAll(onlyToWins);
-		wins.addAll(onlyToWins);
+			losses.addAll(filteredLosses);
+			draws.addAll(toWins);
+			draws.removeAll(onlyToWins);
+			wins.addAll(onlyToWins);
+		} while(!onlyToWins.isEmpty());
+
 		
 		toWins = wins;
 		
@@ -111,8 +118,8 @@ public class Ai {
 			for(Board board : draws) {
 				if(!isReachable(board, newWins, true))
 					toWins.remove(board);
-				else if(board.getState() != BoardState.IMMEDIATE_WIN)
-					board.setState(BoardState.WIN);
+				else if(board.getState() != BoardState.ONLY_TO_WIN)
+					board.setState(BoardState.TO_WIN);
 			}
 			draws.removeAll(toWins);
 			wins.addAll(toWins);
@@ -155,14 +162,14 @@ public class Ai {
 
 	public Board getMove(Board board, boolean isMax) {
 		IntersectionType type = isMax ? IntersectionType.OCCUPIED_BY_ME : IntersectionType.OCCUPIED_BY_OPPONENT;
-		if(board.getNumberOf(IntersectionType.UNOCCUPIED) < 10) {
+		if(board.getNumberOf(IntersectionType.UNOCCUPIED) < 10/*(isMax ? 5 : 4)*/) {
 			
 			for(
-					int rawState = isMax ? BoardState.IMMEDIATE_WIN.rawValue : BoardState.IMMEDIATE_LOSS.rawValue;
-					isMax && rawState >= BoardState.IMMEDIATE_LOSS.rawValue || !isMax && rawState <= BoardState.IMMEDIATE_WIN.rawValue;
+					int rawState = isMax ? BoardState.WIN.rawValue : BoardState.ONLY_TO_LOSS.rawValue;
+					isMax && rawState >= BoardState.ONLY_TO_LOSS.rawValue || !isMax && rawState <= BoardState.WIN.rawValue;
 					rawState += isMax ? -1 : 1) {
 				List<Board> boards = data.getBoardsByState(BoardState.defineState(rawState));
-				if(!isMax && board.getNumberOf(IntersectionType.UNOCCUPIED) == 4 && rawState == BoardState.IMMEDIATE_LOSS.rawValue)
+				if(!isMax && board.getNumberOf(IntersectionType.UNOCCUPIED) == 4 && rawState == BoardState.ONLY_TO_LOSS.rawValue)
 					boards.addAll(losses_with_mills);
 				if(!boards.isEmpty()) {
 					List<Board> result = getAppropriateMovement(board, boards, type);
@@ -177,7 +184,9 @@ public class Ai {
 			Board variant = board.putTo(position, type);
 			if(variant != null) {
 				if(variant.hasMill(IntersectionType.OCCUPIED_BY_OPPONENT))
-					variant.setState(BoardState.IMMEDIATE_LOSS);
+					variant.setState(BoardState.ONLY_TO_LOSS);
+				else if(variant.hasMill(IntersectionType.OCCUPIED_BY_ME))
+					variant.setState(BoardState.WIN);
 				else
 					variant.setState(getMove(variant, !isMax).getState());
 				boards.add(variant);
@@ -186,10 +195,10 @@ public class Ai {
 		//if(isMax)
 		//	data.addBoard(new HashSet<Board>(boards));
 		List<ArrayList<Board>> positionsByState = new ArrayList<ArrayList<Board>>();
-		for(int index = BoardState.IMMEDIATE_LOSS.rawValue; index <= BoardState.IMMEDIATE_WIN.rawValue; index++)
+		for(int index = BoardState.ONLY_TO_LOSS.rawValue; index <= BoardState.WIN.rawValue; index++)
 			positionsByState.add(new ArrayList<Board>());
 		for(Board candidate : boards)
-			positionsByState.get(candidate.getState().rawValue - BoardState.IMMEDIATE_LOSS.rawValue).add(candidate);
+			positionsByState.get(candidate.getState().rawValue - BoardState.ONLY_TO_LOSS.rawValue).add(candidate);
 		
 		ListIterator<ArrayList<Board>> iterator = positionsByState.listIterator(isMax ? positionsByState.size() : 0);
 		while(isMax && iterator.hasPrevious() || !isMax && iterator.hasNext()) {
