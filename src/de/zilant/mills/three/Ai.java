@@ -6,71 +6,79 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.TreeMap;
 
 import javax.management.ImmutableDescriptor;
 
 public class Ai {
 	
+	private long increase(long line) {
+		long mask = 2;
+		while((line & mask) != 0) {
+			line -= mask;
+			mask <<= 2;
+		}
+		line += mask >> 1;
+		return line;
+	}
+	
 	public Ai(Data data) {
-		wins = new HashSet<Board>();
-		losses = new HashSet<Board>();
-		draws = new HashSet<Board>();
+		wins = new HashSet<Position>();
+		losses = new HashSet<Position>();
+		draws = new HashSet<Position>();
 		random = new Random();
 		this.data = data;
 		
-		int[] values = new int[9];
-		while(!Arrays.equals(values, new int[] {2,2,2,1,1,1,0,0,0}))
-		{
-			int index = 9;
-			int divisionResult = 0;
-			do {
-				values[--index] += 1;
-				divisionResult = values[index] / 3;
-				values[index] %= 3;
-			} while(divisionResult > 0 && index > 0);
-
-			Board board = new Board(values);
-			if(
-					board.getNumberOf(IntersectionType.OCCUPIED_BY_ME) == 3 &&
-					board.getNumberOf(IntersectionType.OCCUPIED_BY_OPPONENT) == 3) {
-				boolean haveIMill = board.hasMill(IntersectionType.OCCUPIED_BY_ME);
-				boolean hasOpponentMill = board.hasMill(IntersectionType.OCCUPIED_BY_OPPONENT);
-				if(haveIMill && !hasOpponentMill) {
-					board.setState(BoardState.WIN);
-					wins.add(board);
-				} else if(!haveIMill && hasOpponentMill) {
-					board.setState(BoardState.ONLY_TO_LOSS);
-					losses.add(board);
-				} else if(!haveIMill && !hasOpponentMill)
-					draws.add(board);
-				
-			}
-		}
+		for(long topLine = 0; topLine <= 0x2A; topLine = increase(topLine))
+			for(long bottomLine = topLine; bottomLine <= 0x2A; bottomLine = increase(bottomLine))
+				for(long centerLne = 0; centerLne <= 0x2A; centerLne = increase(centerLne)) {
+					Position position = new Position(topLine << 12 | centerLne << 6 | bottomLine);
+					if( position.NUMBER_OF_MY_PIECES == 3 && position.NUMBER_OF_OPPONENTS_PIECES == 3) {
+						boolean haveIMill = position.hasMill(PieceType.MINE);
+						boolean hasOpponentMill = position.hasMill(PieceType.OPPONENTS);
+						Position symmetricPosition = new Position(bottomLine << 12 | centerLne << 6 | topLine);
+						if(haveIMill && !hasOpponentMill) {
+							position.setState(PositionState.WIN);
+							symmetricPosition.setState(PositionState.WIN);
+							wins.add(position);
+							wins.add(symmetricPosition);
+						} else if(!haveIMill && hasOpponentMill) {
+							position.setState(PositionState.ONLY_TO_LOSS);
+							symmetricPosition.setState(PositionState.ONLY_TO_LOSS);
+							losses.add(position);
+							losses.add(symmetricPosition);
+						} else if(!haveIMill && !hasOpponentMill) {
+							draws.add(position);
+							draws.add(symmetricPosition);
+						}
+					}
+				}
 		
 		losses_with_mills = losses;
-		Set<Board> newLosses = getLosses(draws, losses, BoardState.ONLY_TO_LOSS);
+		Set<Position> newLosses = getLosses(draws, losses, PositionState.ONLY_TO_LOSS);
 		draws.removeAll(newLosses);
 		losses = newLosses;
 		
 		boolean continueSearch = false;
 		do {
-			Set<Board> onlyToLosses = new HashSet<Board>();
-			for(Board board : draws)
+			Set<Position> onlyToLosses = new HashSet<Position>();
+			for(Position board : draws)
 				if(isReachable(board, newLosses, false) && !isReachable(board, wins, false) && !isReachable(board, draws, false))
 					onlyToLosses.add(board);
 			
-			newLosses = getLosses(draws, onlyToLosses, BoardState.TO_LOSS);
+			newLosses = getLosses(draws, onlyToLosses, PositionState.TO_LOSS);
 			draws.removeAll(newLosses);
 			losses.addAll(newLosses);
 			continueSearch = newLosses.size() > 0;
 			
-			onlyToLosses = new HashSet<Board>();
-			for(Board board : losses)
+			onlyToLosses = new HashSet<Position>();
+			for(Position board : losses)
 				if(isReachable(board, losses, false) && !isReachable(board, wins, false) && !isReachable(board, draws, false))
 					onlyToLosses.add(board);
-			onlyToLosses = getLosses(draws, onlyToLosses, BoardState.TO_LOSS);
+			onlyToLosses = getLosses(draws, onlyToLosses, PositionState.TO_LOSS);
 			newLosses.addAll(onlyToLosses);
 			draws.removeAll(onlyToLosses);
 			losses.addAll(onlyToLosses);
@@ -79,27 +87,27 @@ public class Ai {
 		} while(continueSearch);
 		
 		
-		Set<Board> toWins = null;
-		Set<Board> onlyToWins = null;
+		Set<Position> toWins = null;
+		Set<Position> onlyToWins = null;
 		do {
 			toWins = getWins(draws, wins);
 			draws.removeAll(toWins);
 			
-			Set<Board> filteredLosses = getWins(losses, wins);
+			Set<Position> filteredLosses = getWins(losses, wins);
 			losses.removeAll(filteredLosses);
 			
-			onlyToWins = new HashSet<Board>();
+			onlyToWins = new HashSet<Position>();
 			
-			for(Board win : toWins)
+			for(Position win : toWins)
 				if(isReachable(win, toWins, true) && !isReachable(win, losses, true) && !isReachable(win, draws, true)) {
-					win.setState(BoardState.ONLY_TO_WIN);
+					win.setState(PositionState.ONLY_TO_WIN);
 					onlyToWins.add(win);
 				}
 			
 			
-			for(Board draw : draws) {
+			for(Position draw : draws) {
 				if((isReachable(draw, toWins, true) || isReachable(draw, filteredLosses, true)) && !isReachable(draw, losses, true) && !isReachable(draw, draws, true)) {
-					draw.setState(BoardState.ONLY_TO_WIN);
+					draw.setState(PositionState.ONLY_TO_WIN);
 					onlyToWins.add(draw);
 				}
 			}
@@ -113,38 +121,42 @@ public class Ai {
 		toWins = wins;
 		
 		do {
-			Set<Board> newWins = getWins(draws, toWins);
-			toWins = new HashSet<Board>(draws);
-			for(Board board : draws) {
+			Set<Position> newWins = getWins(draws, toWins);
+			toWins = new HashSet<Position>(draws);
+			for(Position board : draws) {
 				if(!isReachable(board, newWins, true))
 					toWins.remove(board);
-				else if(board.getState() != BoardState.ONLY_TO_WIN)
-					board.setState(BoardState.TO_WIN);
+				else if(board.getState() != PositionState.ONLY_TO_WIN)
+					board.setState(PositionState.TO_WIN);
 			}
 			draws.removeAll(toWins);
 			wins.addAll(toWins);
 		} while(toWins.size() > 0);
-
-		/*
+		
 		data.addBoard(wins);
 		data.addBoard(draws);
 		data.addBoard(losses);
-		getMove(new Board(new int[] {0,0,0,0,0,0,0,0,0}), true);
-		getMove(new Board(new int[] {0,0,0,0,0,0,0,0,0}), false);
-		*/
+		minimaxPositions = new TreeMap<Long, Position>();
+		getMove(new Position(0), true);
+		getMove(new Position(0), false);
+		Set<Position> additionalPositions = new HashSet<Position>();
+		for(Long value : minimaxPositions.keySet())
+			additionalPositions.add(minimaxPositions.get(value));
+		data.addBoard(additionalPositions);
+		
 		System.out.println("Finish");
 	}
 	
-	private List<Board> getAppropriateMovement(Board board, List<Board> boards, IntersectionType type) {
-		List<Board> result = new ArrayList<Board>();
-		boolean isMiddleStage = board.getNumberOf(IntersectionType.OCCUPIED_BY_ME) == 3 && board.getNumberOf(IntersectionType.OCCUPIED_BY_OPPONENT) == 3;
-		for(Board to : boards) {
+	private List<Position> getAppropriateMove(Position board, List<Position> boards, PieceType type) {
+		List<Position> result = new ArrayList<Position>();
+		boolean isMiddleStage = board.NUMBER_OF_MY_PIECES == 3 && board.NUMBER_OF_OPPONENTS_PIECES == 3;
+		for(Position to : boards) {
 			if(isMiddleStage) {
-				if(Board.isReachable(board, to, false))
+				if(Position.isReachable(board, to, false))
 					result.add(to);
 			} else {
-				long boardId = board.getId();
-				long toId = to.getId();
+				long boardId = board.VALUE;
+				long toId = to.VALUE;
 				long difference = 0;
 				for(int index = 0; index < 9; index++) {
 					long boardPosition = boardId & 3;
@@ -153,93 +165,104 @@ public class Ai {
 					toId = toId >> 2;
 					if(boardPosition != toPosition) difference = (difference << 2) | boardPosition | toPosition;
 				}
-				if(difference == type.rawValue)
+				if(difference == type.VALUE)
 					result.add(to);
 			}
 		}
 		return result;
 	}
 
-	public Board getMove(Board board, boolean isMax) {
-		IntersectionType type = isMax ? IntersectionType.OCCUPIED_BY_ME : IntersectionType.OCCUPIED_BY_OPPONENT;
-		if(board.getNumberOf(IntersectionType.UNOCCUPIED) < 10/*(isMax ? 5 : 4)*/) {
+	public Position getMove(Position board, boolean isMax) {
+		PieceType type = isMax ? PieceType.MINE : PieceType.OPPONENTS;
+		if(board.NUMBER_OF_MY_PIECES + board.NUMBER_OF_OPPONENTS_PIECES > (isMax ? 4 : 5)) {
 			
 			for(
-					int rawState = isMax ? BoardState.WIN.rawValue : BoardState.ONLY_TO_LOSS.rawValue;
-					isMax && rawState >= BoardState.ONLY_TO_LOSS.rawValue || !isMax && rawState <= BoardState.WIN.rawValue;
+					int rawState = isMax ? PositionState.WIN.VALUE : PositionState.ONLY_TO_LOSS.VALUE;
+					isMax && rawState >= PositionState.ONLY_TO_LOSS.VALUE || !isMax && rawState <= PositionState.WIN.VALUE;
 					rawState += isMax ? -1 : 1) {
-				List<Board> boards = data.getBoardsByState(BoardState.defineState(rawState));
-				if(!isMax && board.getNumberOf(IntersectionType.UNOCCUPIED) == 4 && rawState == BoardState.ONLY_TO_LOSS.rawValue)
+				List<Position> boards = data.getBoardsByState(PositionState.getStateOf(rawState));
+				if(!isMax && (board.NUMBER_OF_MY_PIECES + board.NUMBER_OF_OPPONENTS_PIECES) == 5 && rawState == PositionState.ONLY_TO_LOSS.VALUE)
 					boards.addAll(losses_with_mills);
 				if(!boards.isEmpty()) {
-					List<Board> result = getAppropriateMovement(board, boards, type);
+					List<Position> result = getAppropriateMove(board, boards, type);
 					if(!result.isEmpty()) return result.get(random.nextInt(result.size()));
 				}
 			}
 			
 			return null;
 		}
-		List<Board> boards = new ArrayList<Board>();
+		List<Position> boards = new ArrayList<Position>();
 		for(int position = 0; position < 9; position++) {
-			Board variant = board.putTo(position, type);
+			Position variant = board.putTo(position, type);
 			if(variant != null) {
-				if(variant.hasMill(IntersectionType.OCCUPIED_BY_OPPONENT))
-					variant.setState(BoardState.ONLY_TO_LOSS);
-				else if(variant.hasMill(IntersectionType.OCCUPIED_BY_ME))
-					variant.setState(BoardState.WIN);
-				else
-					variant.setState(getMove(variant, !isMax).getState());
+				Position evaluated = minimaxPositions.get(variant.VALUE);
+				if(evaluated == null) {
+					if(variant.hasMill(PieceType.OPPONENTS))
+						variant.setState(PositionState.ONLY_TO_LOSS);
+					else if(variant.hasMill(PieceType.MINE))
+						variant.setState(PositionState.WIN);
+					else
+						variant.setState(getMove(variant, !isMax).getState());
+					if(isMax) {
+						minimaxPositions.put(variant.VALUE, variant);
+						long value = (variant.VALUE & 0x3F000) >> 12 | variant.VALUE & 0xFC0 | (variant.VALUE & 0x3F) << 12;
+						minimaxPositions.put(value, new Position(value, variant.getState()));
+						value = (variant.VALUE & 0x30C30) >> 4 | variant.VALUE & 0xC30C | (variant.VALUE & 0x30C3) << 4;
+						minimaxPositions.put(value, new Position(value, variant.getState()));
+						value = (value & 0x3F000) >> 12 | value & 0xFC0 | (value & 0x3F) << 12;
+						minimaxPositions.put(value, new Position(value, variant.getState()));
+					}
+				} else
+					variant = evaluated;
 				boards.add(variant);
 			}
 		}
-		//if(isMax)
-		//	data.addBoard(new HashSet<Board>(boards));
-		List<ArrayList<Board>> positionsByState = new ArrayList<ArrayList<Board>>();
-		for(int index = BoardState.ONLY_TO_LOSS.rawValue; index <= BoardState.WIN.rawValue; index++)
-			positionsByState.add(new ArrayList<Board>());
-		for(Board candidate : boards)
-			positionsByState.get(candidate.getState().rawValue - BoardState.ONLY_TO_LOSS.rawValue).add(candidate);
+		List<ArrayList<Position>> positionsByState = new ArrayList<ArrayList<Position>>();
+		for(int index = PositionState.ONLY_TO_LOSS.VALUE; index <= PositionState.WIN.VALUE; index++)
+			positionsByState.add(new ArrayList<Position>());
+		for(Position candidate : boards)
+			positionsByState.get(candidate.getState().VALUE - PositionState.ONLY_TO_LOSS.VALUE).add(candidate);
 		
-		ListIterator<ArrayList<Board>> iterator = positionsByState.listIterator(isMax ? positionsByState.size() : 0);
+		ListIterator<ArrayList<Position>> iterator = positionsByState.listIterator(isMax ? positionsByState.size() : 0);
 		while(isMax && iterator.hasPrevious() || !isMax && iterator.hasNext()) {
-			ArrayList<Board> positions = isMax ? iterator.previous() : iterator.next();
+			ArrayList<Position> positions = isMax ? iterator.previous() : iterator.next();
 			if(!positions.isEmpty()) return positions.get(random.nextInt(positions.size()));
 		}
 		
 		return null;
 	}
 	
-	private Set<Board> getLosses(Set<Board> from, Set<Board> to, BoardState state) {
-		Set<Board> result = new HashSet<Board>();
-		for(Board board : from)
-			for(Board loss : to)
-				if(Board.isReachable(board, loss, true)) {
-					board.setState(state);
-					result.add(board);
-				}
+	private Set<Position> getLosses(Set<Position> from, Set<Position> to, PositionState state) {
+		Set<Position> result = new HashSet<Position>();
+		for(Position board : from)
+			if(isReachable(board, to, true)) {
+				board.setState(state);
+				result.add(board);
+			}
+
 		return result;
 	}
 	
-	private Set<Board> getWins(Set<Board> from, Set<Board> to) {
-		Set<Board> result = new HashSet<Board>();
-		for(Board board : from)
-			for(Board win : to)
-				if(Board.isReachable(board, win, false))
-					result.add(board);
+	private Set<Position> getWins(Set<Position> from, Set<Position> to) {
+		Set<Position> result = new HashSet<Position>();
+		for(Position board : from)
+			if(isReachable(board, to, false))
+				result.add(board);
 		return result;
 	}
 	
-	private boolean isReachable(Board from, Collection<Board> to, boolean byOpponent) {
-		for(Board board : to)
-			if(Board.isReachable(from, board, byOpponent))
+	private boolean isReachable(Position from, Collection<Position> to, boolean byOpponent) {
+		for(Position position : to)
+			if(Position.isReachable(from, position, byOpponent))
 				return true;
 		return false;
 	}
 	
-	private Set<Board> losses_with_mills;
-	private Set<Board> wins;
-	private Set<Board> losses;
-	private Set<Board> draws;
+	private Set<Position> losses_with_mills;
+	private Set<Position> wins;
+	private Set<Position> losses;
+	private Set<Position> draws;
+	private Map<Long, Position> minimaxPositions;
 	private Random random;
 	private Data data;
 	

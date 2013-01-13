@@ -2,10 +2,8 @@ package de.zilant.mills.three;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.Collection;
 import java.util.List;
-import java.util.Set;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import com.almworks.sqlite4java.SQLiteConnection;
@@ -15,9 +13,9 @@ import com.almworks.sqlite4java.SQLiteStatement;
 
 public class Data {
 	
-	public Data() throws Exception
+	public Data(String path) throws Exception
 	{
-		dbQueue = new SQLiteQueue(new File(DATABASE_PATH))
+		dbQueue = new SQLiteQueue(new File(path))
 		{
 			@Override
 			protected long getReincarnationTimeout() { return DEFAULT_REINCARNATE_TIMEOUT; }
@@ -49,15 +47,15 @@ public class Data {
 		}
 	}
 	
-	public void addBoard(final Set<Board> boards) {
+	public void addBoard(final Collection<Position> positions) {
 		dbQueue.execute(new SQLiteJob<Object>() {
 			
 			@Override
 			protected Object job(SQLiteConnection connection) throws Throwable {
 				connection.exec(BEGIN_TRANSACTION);
 				try {
-					for(Board board : boards)
-						insert.reset().bind(1, board.getId()).bind(2, board.getState().rawValue).step();
+					for(Position position : positions)
+						insert.reset().bind(1, position.VALUE).bind(2, position.getState().VALUE).step();
 				} finally {
 					connection.exec(END_TRANSACTION);
 				}
@@ -67,19 +65,19 @@ public class Data {
 		});
 	}
 	
-	public List<Board> getBoardsByState(final BoardState state) {
+	public List<Position> getBoardsByState(final PositionState state) {
 		try {
-			return dbQueue.execute(new SQLiteJob<List<Board>>() {
+			return dbQueue.execute(new SQLiteJob<List<Position>>() {
 				
 				@Override
-				protected List<Board> job(SQLiteConnection connection)
+				protected List<Position> job(SQLiteConnection connection)
 						throws Throwable {
-					selectByState.reset().bind(1, state.rawValue);
-					List<Board> result = new ArrayList<Board>();
+					selectByState.reset().bind(1, state.VALUE);
+					List<Position> result = new ArrayList<Position>();
 					while(selectByState.step())
-						result.add(Board.createBoard(
+						result.add(new Position(
 								selectByState.columnLong(0),
-								selectByState.columnInt(1)));
+								PositionState.getStateOf(selectByState.columnInt(1))));
 					
 					return result;
 				}
@@ -97,29 +95,27 @@ public class Data {
 				dbQueue.stop(true).join();
 			} finally {
 				insert.dispose();
-				selectByState.dispose();		
+				selectByState.dispose();
 			}
 		} catch(Exception e) {
 			e.printStackTrace();
 		}
 	}
 	
-	private SQLiteQueue dbQueue;
-	private SQLiteStatement insert;
-	private SQLiteStatement selectByState;
+	private SQLiteQueue         dbQueue;
+	private SQLiteStatement     insert;
+	private SQLiteStatement     selectByState;
 	
-	private static final String DATABASE_PATH = "tmp/database";
+	private static final String BEGIN_TRANSACTION              = "BEGIN DEFERRED TRANSACTION;";
+	private static final String END_TRANSACTION                = "END TRANSACTION;";
 	
-	private static final String BEGIN_TRANSACTION = "BEGIN DEFERRED TRANSACTION;";
-	private static final String END_TRANSACTION = "END TRANSACTION;";
-	
-	private static final String CREATE_BOARD_TABLE = "CREATE TABLE IF NOT EXISTS boards (" +
+	private static final String CREATE_BOARD_TABLE             = "CREATE TABLE IF NOT EXISTS boards (" +
 			"id INTEGER PRIMARY KEY NOT NULL, " +
 			"state INTEGER NOT NULL " +
 			");";
-	private static final String INSERT_BOARD = "INSERT INTO boards (id, state) VALUES (:id, :state);";
-	private static final String SELECT_BOARDS_BY_STATE = "SELECT * FROM boards WHERE state = :state;";
+	private static final String INSERT_BOARD                   = "INSERT OR IGNORE INTO boards (id, state) VALUES (:id, :state);";
+	private static final String SELECT_BOARDS_BY_STATE         = "SELECT * FROM boards WHERE state = :state;";
 	
-	private static final long DATABASE_INTIALIZATION_TIMEOUT = 1500;
+	private static final long   DATABASE_INTIALIZATION_TIMEOUT = 1500;
 	
 }

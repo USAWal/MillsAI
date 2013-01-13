@@ -25,18 +25,17 @@ public class Game extends Component implements MouseListener {
 	
 	public Game(Data data) throws IOException {
 		movingPiecePosition = -1;
-		background = ImageIO.read(Game.class.getResource("background.jpg"));
 		whites = new ArrayList<Point>();
 		blacks = new ArrayList<Point>();
-		board = new Board(new int[] {0,0,0,0,0,0,0,0,0});
+		board = new Position(0);
 		ai = new Ai(data);
-		aiMove();
+		//aiMove();
 	}
 	
 	public static void main(String... args) {
 		JFrame frame = null;
 		try {
-			final Data data = new Data();
+			final Data data = new Data("tmp/database");
 			frame = new JFrame("Mills");
 			frame.setPreferredSize(new Dimension(300, 300));
 			frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -69,12 +68,12 @@ public class Game extends Component implements MouseListener {
 		int startY = 7*size.height/60;
 		int stepX = size.width/3;
 		int stepY = size.height/3;
-		long id = board.getId();
+		long id = board.VALUE;
 		for(int position = 0; position < 9; position++) {
 			int value = 3 & (int) id;
 			id = id >> 2;
-			graphics.setColor(value == IntersectionType.OCCUPIED_BY_OPPONENT.rawValue ? Color.YELLOW : Color.DARK_GRAY);
-			if(value != IntersectionType.UNOCCUPIED.rawValue)
+			graphics.setColor(value == PieceType.OPPONENTS.VALUE ? Color.YELLOW : Color.DARK_GRAY);
+			if(value != PieceType.NONE.VALUE)
 				graphics.fillOval(startX + (position%3)*stepX, startY + (position/3)*stepY, size.width/10, size.height/10);
 		}
 	};
@@ -82,24 +81,24 @@ public class Game extends Component implements MouseListener {
 	private void moveTo(int x, int y) {
 		int position = y*3 + x;
 		if(
-				board.getNumberOf(IntersectionType.OCCUPIED_BY_OPPONENT) == 3 &&
-				board.getNumberOf(IntersectionType.OCCUPIED_BY_ME) == 3) {
+				board.NUMBER_OF_OPPONENTS_PIECES == 3 &&
+				board.NUMBER_OF_MY_PIECES == 3) {
 			if(movingPiecePosition < 0) {
-				if(((board.getId() >> position*2) & 3) == IntersectionType.OCCUPIED_BY_OPPONENT.rawValue) {
+				if(((board.VALUE >> position*2) & 3) == PieceType.OPPONENTS.VALUE) {
 					movingPiecePosition = position;
 				}
 				return;
 			}
-			long newBoardId = (board.getId() & ~(3 << position*2)) | (IntersectionType.OCCUPIED_BY_OPPONENT.rawValue << position*2);
+			long newBoardId = (board.VALUE & ~(3 << position*2)) | (PieceType.OPPONENTS.VALUE << position*2);
 			newBoardId = newBoardId & ~(3 << movingPiecePosition*2);
-			Board newBoard = Board.createBoard(newBoardId, BoardState.DRAW.rawValue);
+			Position newBoard = new Position(newBoardId);
 			movingPiecePosition = -1;
-			if(Board.isReachable(board, newBoard, true))
+			if(Position.isReachable(board, newBoard, true))
 				board = newBoard;
 			else
 				return;
 		} else {
-			Board newBoard = board.putTo(position, IntersectionType.OCCUPIED_BY_OPPONENT);
+			Position newBoard = board.putTo(position, PieceType.OPPONENTS);
 			if(newBoard != null)
 				board = newBoard;
 			else
@@ -110,10 +109,10 @@ public class Game extends Component implements MouseListener {
 	}
 	
 	private void aiMove() {
-		new SwingWorker<Board, Object>() {
+		new SwingWorker<Position, Object>() {
 
 			@Override
-			protected Board doInBackground() throws Exception {
+			protected Position doInBackground() throws Exception {
 				return ai.getMove(board, true);
 			}
 			
@@ -136,7 +135,7 @@ public class Game extends Component implements MouseListener {
 	BufferedImage background;
 	List<Point> whites;
 	List<Point> blacks;
-	Board board;
+	Position board;
 	Ai ai;
 	int movingPiecePosition;
 	
