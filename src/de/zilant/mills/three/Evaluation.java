@@ -24,7 +24,6 @@ public class Evaluation {
 		p.put(PositionState.TO_LOSS,      new TreeSet<Long>());
 		p.put(PositionState.ONLY_TO_LOSS, new TreeSet<Long>());
 		p.put(PositionState.LOSS,         new TreeSet<Long>());
-		random = new Random();
 		
 		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Evaluation was started.");
 		
@@ -57,10 +56,6 @@ public class Evaluation {
 	}
 	
 	public Map<PositionState, Set<Long>> getPositions() { return p; }
-	
-	public Position getMove(Position position) {
-		return null;
-	}
 	
 	public static void main (String ... args) {
 		try {
@@ -218,7 +213,7 @@ public class Evaluation {
 		return result;
 	}
 
-	private Position startMinimaxWith(Position board, boolean isMax) {
+	private PositionState startMinimaxWith(Position board, boolean isMax) {
 		PieceType type = isMax ? PieceType.MINE : PieceType.OPPONENTS;
 		if(board.NUMBER_OF_MY_PIECES + board.NUMBER_OF_OPPONENTS_PIECES > (isMax ? 4 : 5)) {
 			
@@ -226,16 +221,17 @@ public class Evaluation {
 					int rawState = isMax ? PositionState.WIN.VALUE : PositionState.LOSS.VALUE;
 					isMax && rawState >= PositionState.LOSS.VALUE || !isMax && rawState <= PositionState.WIN.VALUE;
 					rawState += isMax ? -1 : 1) {
-				Set<Long> boards = p.get(PositionState.getStateOf(rawState));
+				PositionState positionState = PositionState.getStateOf(rawState);
+				Set<Long> boards = p.get(positionState);
 				if(!boards.isEmpty()) {
 					List<Long> result = getAppropriateMove(board, boards, type);
-					if(!result.isEmpty()) return new Position(result.get(random.nextInt(result.size())), PositionState.getStateOf(rawState));
+					if(!result.isEmpty()) return positionState;
 				}
 			}
 			
 			return null;
 		}
-		List<Position> boards = new ArrayList<Position>();
+		PositionState result = null;
 		for(int position = 0; position < 9; position++) {
 			Position variant = board.putTo(position, type);
 			if(variant != null) {
@@ -246,7 +242,7 @@ public class Evaluation {
 					else if(variant.hasMill(PieceType.MINE))
 						variant.setState(PositionState.WIN);
 					else
-						variant.setState(startMinimaxWith(variant, !isMax).getState());
+						variant.setState(startMinimaxWith(variant, !isMax));
 					if(isMax) {
 						minimaxPositions.put(variant.VALUE, variant);
 						long value = (variant.VALUE & 0x3F000) >> 12 | variant.VALUE & 0xFC0 | (variant.VALUE & 0x3F) << 12;
@@ -258,22 +254,13 @@ public class Evaluation {
 					}
 				} else
 					variant = evaluated;
-				boards.add(variant);
+				int evaluatedState = variant.getState().VALUE;
+				if(result == null || isMax && evaluatedState > result.VALUE || !isMax && evaluatedState < result.VALUE)
+					result = variant.getState();
 			}
 		}
-		List<ArrayList<Position>> positionsByState = new ArrayList<ArrayList<Position>>();
-		for(int index = PositionState.LOSS.VALUE; index <= PositionState.WIN.VALUE; index++)
-			positionsByState.add(new ArrayList<Position>());
-		for(Position candidate : boards)
-			positionsByState.get(candidate.getState().VALUE - PositionState.LOSS.VALUE).add(candidate);
 		
-		ListIterator<ArrayList<Position>> iterator = positionsByState.listIterator(isMax ? positionsByState.size() : 0);
-		while(isMax && iterator.hasPrevious() || !isMax && iterator.hasNext()) {
-			ArrayList<Position> positions = isMax ? iterator.previous() : iterator.next();
-			if(!positions.isEmpty()) return positions.get(random.nextInt(positions.size()));
-		}
-		
-		return null;
+		return result;
 	}
 	
 	private Collection<Long> getReachablePositions(boolean byOpponent, Collection<Long> from, Collection<Long> to) {
@@ -301,6 +288,5 @@ public class Evaluation {
 	
 	private Map<PositionState, Set<Long>> p;
 	private Map<Long, Position> minimaxPositions;
-	private Random random;
 	
 }

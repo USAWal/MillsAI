@@ -14,7 +14,10 @@ import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
 import javax.imageio.ImageIO;
@@ -23,13 +26,13 @@ import javax.swing.SwingWorker;
 
 public class Game extends Component implements MouseListener {
 	
-	public Game(Data data) throws IOException {
+	public Game(Data data) throws Exception {
 		movingPiecePosition = -1;
 		whites = new ArrayList<Point>();
 		blacks = new ArrayList<Point>();
 		board = new Position(0);
-		evaluation = new Evaluation();
-		//aiMove();
+		data = new Data("tmp/database");
+		random = new Random();
 	}
 	
 	public static void main(String... args) {
@@ -113,7 +116,14 @@ public class Game extends Component implements MouseListener {
 
 			@Override
 			protected Position doInBackground() throws Exception {
-				return evaluation.getMove(board);
+				for(int rawState = PositionState.WIN.VALUE; rawState >= PositionState.LOSS.VALUE; rawState --) {
+					List<Position> boards = data.getBoardsByState(PositionState.getStateOf(rawState));
+					if(!boards.isEmpty()) {
+						List<Long> result = getAppropriateMove(board, boards, PieceType.MINE);
+						if(!result.isEmpty()) return new Position(result.get(random.nextInt(result.size())), PositionState.getStateOf(rawState));
+					}
+				}
+				return null;
 			}
 			
 			@Override
@@ -129,14 +139,40 @@ public class Game extends Component implements MouseListener {
 					e.printStackTrace();
 				}
 			}
+			
+			private List<Long> getAppropriateMove(Position board, Collection<Position> boards, PieceType type) {
+				List<Long> result = new ArrayList<Long>();
+				boolean isMiddleStage = board.NUMBER_OF_MY_PIECES == 3 && board.NUMBER_OF_OPPONENTS_PIECES == 3;
+				for(Position to : boards) {
+					if(isMiddleStage) {
+						if(Position.isReachable(board.VALUE, to.VALUE, false))
+							result.add(to.VALUE);
+					} else {
+						if(isPieceAdded(board.VALUE, to.VALUE, type))
+							result.add(to.VALUE);
+					}
+				}
+				return result;
+			}
+			
+			private boolean isPieceAdded(Long from, Long to, PieceType type) {
+				long difference = from ^ to;
+				do {
+					if(difference == type.VALUE)    return true;
+					else if ((difference & 3) != 0) return false;
+					else difference >>= 2;
+				} while(difference != 0);	
+				return false;
+			}
 		}.execute();		
 	}
 	
+	Data data;
+	Random random;
 	BufferedImage background;
 	List<Point> whites;
 	List<Point> blacks;
 	Position board;
-	Evaluation evaluation;
 	int movingPiecePosition;
 	
 	@Override

@@ -125,7 +125,7 @@ public class Data {
 			"id INTEGER PRIMARY KEY NOT NULL, " +
 			"state INTEGER NOT NULL " +
 			");";
-	private static final String INSERT_BOARD                   = "INSERT OR IGNORE INTO boards (id, state) VALUES (:id, :state);";
+	private static final String INSERT_BOARD                   = "INSERT INTO boards (id, state) VALUES (:id, :state);";
 	private static final String SELECT_BOARDS_BY_STATE         = "SELECT * FROM boards WHERE state = :state;";
 	
 	private static final String CLEAN_POSITIONS                = "DELETE FROM boards;";
