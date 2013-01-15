@@ -4,6 +4,8 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import com.almworks.sqlite4java.SQLiteConnection;
@@ -47,15 +49,16 @@ public class Data {
 		}
 	}
 	
-	public void addBoard(final Collection<Position> positions) {
+	public void addBoard(final Map<PositionState, Set<Long>> positions) {
 		dbQueue.execute(new SQLiteJob<Object>() {
 			
 			@Override
 			protected Object job(SQLiteConnection connection) throws Throwable {
 				connection.exec(BEGIN_TRANSACTION);
 				try {
-					for(Position position : positions)
-						insert.reset().bind(1, position.VALUE).bind(2, position.getState().VALUE).step();
+					for(int state = PositionState.WIN.VALUE; state >= PositionState.LOSS.VALUE; state--)
+						for(Long value : positions.get(PositionState.getStateOf(state)))
+							insert.reset().bind(1, value).bind(2, state).step();
 				} finally {
 					connection.exec(END_TRANSACTION);
 				}

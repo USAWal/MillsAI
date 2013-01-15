@@ -6,10 +6,11 @@ public enum PositionState {
 	TO_WIN       ( 1),
 	DRAW         ( 0),
 	TO_LOSS      (-1),
-	ONLY_TO_LOSS (-2);
+	ONLY_TO_LOSS (-2),
+	LOSS         (-3);
 	
 	@Override
-	public String toString() { return descriptions[descriptions.length - (3 + VALUE)]; }
+	public String toString() { return descriptions[descriptions.length - (4 + VALUE)]; }
 	
 	public static PositionState getStateOf(int value) {
 		switch (value) {
@@ -18,6 +19,7 @@ public enum PositionState {
 		case  1: return TO_WIN;
 		case -1: return TO_LOSS;
 		case -2: return ONLY_TO_LOSS;
+		case -3: return LOSS;
 		default: return DRAW;
 		}
 	}
@@ -32,5 +34,6 @@ public enum PositionState {
 		"TO WIN"      ,
 		"DRAW"        ,
 		"TO LOSS"     ,
-		"ONLY TO LOSS"};
+		"ONLY TO LOSS",
+		"LOSS"};
 }

@@ -41,9 +41,9 @@ public class Position {
 		return new Position(positionValue, PositionState.DRAW);
 	} 
 	
-	public static boolean isReachable(Position from, Position to, boolean byOpponent) {
+	public static boolean isReachable(Long from, Long to, boolean byOpponent) {
 		
-		long differences = from.VALUE ^ to.VALUE;
+		long differences = from ^ to;
 		int fromIndex    = -1;
 		int toIndex      = -1;
 		int placeIndex   =  0;

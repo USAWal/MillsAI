@@ -93,7 +93,7 @@ public class Game extends Component implements MouseListener {
 			newBoardId = newBoardId & ~(3 << movingPiecePosition*2);
 			Position newBoard = new Position(newBoardId);
 			movingPiecePosition = -1;
-			if(Position.isReachable(board, newBoard, true))
+			if(Position.isReachable(board.VALUE, newBoard.VALUE, true))
 				board = newBoard;
 			else
 				return;
