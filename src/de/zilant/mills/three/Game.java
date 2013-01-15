@@ -31,8 +31,9 @@ public class Game extends Component implements MouseListener {
 		whites = new ArrayList<Point>();
 		blacks = new ArrayList<Point>();
 		board = new Position(0);
-		data = new Data("tmp/database");
+		this.data = data;
 		random = new Random();
+		aiMove();
 	}
 	
 	public static void main(String... args) {
