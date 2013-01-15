@@ -15,7 +15,26 @@ import java.util.TreeSet;
 
 import javax.management.ImmutableDescriptor;
 
+import com.sun.corba.se.impl.interceptors.PICurrent;
+
 public class Ai {
+	
+	public Map<PositionState, Set<Long>> getPositions() { return p; }
+	
+	public static void main (String ... args) {
+		try {
+			Data data = new Data("tmp/database");
+			try {
+				data.clean();
+				Ai anAi = new Ai();
+				data.addBoard(anAi.getPositions());
+			} finally {
+				data.release();
+			}
+		} catch(Exception exception) {
+			exception.printStackTrace();
+		}
+	}
 	
 	private long increase(long line) {
 		long mask = 2;
@@ -27,18 +46,7 @@ public class Ai {
 		return line;
 	}
 	
-	public Ai(Data data) {
-		p = new EnumMap<PositionState, Set<Long>>(PositionState.class);
-		p.put(PositionState.WIN,          new TreeSet<Long>());
-		p.put(PositionState.ONLY_TO_WIN,  new TreeSet<Long>());
-		p.put(PositionState.TO_WIN,       new TreeSet<Long>());
-		p.put(PositionState.DRAW,         new TreeSet<Long>());
-		p.put(PositionState.TO_LOSS,      new TreeSet<Long>());
-		p.put(PositionState.ONLY_TO_LOSS, new TreeSet<Long>());
-		p.put(PositionState.LOSS,         new TreeSet<Long>());
-		random = new Random();
-		this.data = data;
-		
+	private void fillWinsDrawsLosses() {
 		for(long topLine = 0; topLine <= 0x2A; topLine = increase(topLine))
 			for(long bottomLine = topLine; bottomLine <= 0x2A; bottomLine = increase(bottomLine))
 				for(long centerLne = 0; centerLne <= 0x2A; centerLne = increase(centerLne)) {
@@ -58,21 +66,35 @@ public class Ai {
 							p.get(PositionState.DRAW).add(symmetricPosition.VALUE);
 						}
 					}
-				}
+				}		
+	}
+	
+	public Ai() {
+		p = new EnumMap<PositionState, Set<Long>>(PositionState.class);
+		p.put(PositionState.WIN,          new TreeSet<Long>());
+		p.put(PositionState.ONLY_TO_WIN,  new TreeSet<Long>());
+		p.put(PositionState.TO_WIN,       new TreeSet<Long>());
+		p.put(PositionState.DRAW,         new TreeSet<Long>());
+		p.put(PositionState.TO_LOSS,      new TreeSet<Long>());
+		p.put(PositionState.ONLY_TO_LOSS, new TreeSet<Long>());
+		p.put(PositionState.LOSS,         new TreeSet<Long>());
+		random = new Random();
+		
+		fillWinsDrawsLosses();
 		
 		Set<Long> losses3x3 = new HashSet<Long>(p.get(PositionState.LOSS));
-		Set<Long> newLosses = getLosses(p.get(PositionState.DRAW), p.get(PositionState.LOSS));
+		Set<Long> newLosses = getReachablePositions(p.get(PositionState.DRAW), p.get(PositionState.LOSS), true);
 		p.get(PositionState.DRAW).removeAll(newLosses);
 		p.get(PositionState.ONLY_TO_LOSS).addAll(newLosses);
 				
 		while(!newLosses.isEmpty()) {
 			Set<Long> onlyToLosses = new HashSet<Long>();
-			for(Long position : getWins(p.get(PositionState.DRAW), newLosses))
+			for(Long position : getReachablePositions(p.get(PositionState.DRAW), newLosses, false))
 				if(!isReachable(position, p.get(PositionState.WIN), false) && !isReachable(position, p.get(PositionState.DRAW), false))
 					onlyToLosses.add(position);
-			newLosses = getLosses(p.get(PositionState.DRAW), onlyToLosses);
+			newLosses = getReachablePositions(p.get(PositionState.DRAW), onlyToLosses, true);
 			p.get(PositionState.DRAW).removeAll(newLosses);
-			p.get(PositionState.TO_LOSS).addAll(newLosses);
+			p.get(PositionState.ONLY_TO_LOSS).addAll(newLosses);
 		}
 		newLosses = p.get(PositionState.ONLY_TO_LOSS);
 		boolean prolonge = false;
@@ -80,20 +102,20 @@ public class Ai {
 			Set<Long> onlyToLosses = new HashSet<Long>();
 			Set<Long> losses = new HashSet<Long>(p.get(PositionState.ONLY_TO_LOSS));
 			losses.addAll(p.get(PositionState.TO_LOSS));
-			for(Long position : getWins(losses, losses))
+			for(Long position : getReachablePositions(losses, losses, false))
 				if(!isReachable(position, p.get(PositionState.WIN), false) && !isReachable(position, p.get(PositionState.DRAW), false))
 					onlyToLosses.add(position);
-			newLosses = getLosses(p.get(PositionState.DRAW), onlyToLosses);
+			newLosses = getReachablePositions(p.get(PositionState.DRAW), onlyToLosses, true);
 			p.get(PositionState.DRAW).removeAll(newLosses);
 			p.get(PositionState.TO_LOSS).addAll(newLosses);
 			prolonge = !newLosses.isEmpty();
 			
 			losses = new HashSet<Long>(p.get(PositionState.ONLY_TO_LOSS));
 			losses.addAll(p.get(PositionState.TO_LOSS));
-			for(Long position : getWins(p.get(PositionState.DRAW), newLosses))
+			for(Long position : getReachablePositions(p.get(PositionState.DRAW), newLosses, false))
 				if(!isReachable(position, p.get(PositionState.WIN), false) && !isReachable(position, p.get(PositionState.DRAW), false))
 					onlyToLosses.add(position);
-			newLosses = getLosses(p.get(PositionState.DRAW), onlyToLosses);
+			newLosses = getReachablePositions(p.get(PositionState.DRAW), onlyToLosses, true);
 			p.get(PositionState.DRAW).removeAll(newLosses);
 			p.get(PositionState.TO_LOSS).addAll(newLosses);
 		} while(!newLosses.isEmpty() || prolonge);
@@ -103,20 +125,20 @@ public class Ai {
 		Set<Long> onlyToWins = null;
 		
 		do {
-			toWins = getWins(p.get(PositionState.DRAW), p.get(PositionState.WIN));
-			toWins.addAll(getWins(p.get(PositionState.DRAW), p.get(PositionState.ONLY_TO_WIN)));
+			toWins = getReachablePositions(p.get(PositionState.DRAW), p.get(PositionState.WIN), false);
+			toWins.addAll(getReachablePositions(p.get(PositionState.DRAW), p.get(PositionState.ONLY_TO_WIN), false));
 			p.get(PositionState.DRAW).removeAll(toWins);
 			
-			Set<Long> filteredLosses = getWins(p.get(PositionState.TO_LOSS), p.get(PositionState.WIN));
-			filteredLosses.addAll(getWins(p.get(PositionState.TO_LOSS), p.get(PositionState.ONLY_TO_WIN)));
+			Set<Long> filteredLosses = getReachablePositions(p.get(PositionState.TO_LOSS), p.get(PositionState.WIN), false);
+			filteredLosses.addAll(getReachablePositions(p.get(PositionState.TO_LOSS), p.get(PositionState.ONLY_TO_WIN), false));
 			p.get(PositionState.TO_LOSS).removeAll(filteredLosses);
-			Set<Long> filteredOlnlyToLosses = getWins(p.get(PositionState.ONLY_TO_LOSS), p.get(PositionState.WIN));
-			filteredOlnlyToLosses.addAll(getWins(p.get(PositionState.ONLY_TO_LOSS), p.get(PositionState.ONLY_TO_WIN)));
+			Set<Long> filteredOlnlyToLosses = getReachablePositions(p.get(PositionState.ONLY_TO_LOSS), p.get(PositionState.WIN), false);
+			filteredOlnlyToLosses.addAll(getReachablePositions(p.get(PositionState.ONLY_TO_LOSS), p.get(PositionState.ONLY_TO_WIN), false));
 			p.get(PositionState.ONLY_TO_LOSS).removeAll(filteredOlnlyToLosses);
 			
 			onlyToWins = new HashSet<Long>();
 			
-			for(Long win : getLosses(toWins, toWins))
+			for(Long win : getReachablePositions(toWins, toWins, true))
 				if(!isReachable(win, p.get(PositionState.TO_LOSS), true) && !isReachable(win, p.get(PositionState.ONLY_TO_LOSS), true) && !isReachable(win, p.get(PositionState.DRAW), true))
 					onlyToWins.add(win);
 			
@@ -137,7 +159,7 @@ public class Ai {
 		toWins.addAll(p.get(PositionState.WIN));
 		
 		do {
-			Set<Long> newWins = getWins(p.get(PositionState.DRAW), toWins);
+			Set<Long> newWins = getReachablePositions(p.get(PositionState.DRAW), toWins, false);
 			toWins = new HashSet<Long>(p.get(PositionState.DRAW));
 			for(Long board : p.get(PositionState.DRAW)) {
 				if(!isReachable(board, newWins, true))
@@ -155,9 +177,18 @@ public class Ai {
 		for(Position position : minimaxPositions.values())
 			p.get(position.getState()).add(position.VALUE);
 		p.get(PositionState.LOSS).removeAll(losses3x3);
-		data.addBoard(p);
 		
 		System.out.println("Finish");
+	}
+	
+	private boolean isPieceAdded(Long from, Long to, PieceType type) {
+		long difference = from ^ to;
+		do {
+			if(difference == type.VALUE)    return true;
+			else if ((difference & 3) != 0) return false;
+			else difference >>= 2;
+		} while(difference != 0);	
+		return false;
 	}
 	
 	private List<Long> getAppropriateMove(Position board, Collection<Long> boards, PieceType type) {
@@ -168,17 +199,7 @@ public class Ai {
 				if(Position.isReachable(board.VALUE, to, false))
 					result.add(to);
 			} else {
-				long boardId = board.VALUE;
-				long toId = to;
-				long difference = 0;
-				for(int index = 0; index < 9; index++) {
-					long boardPosition = boardId & 3;
-					long toPosition = toId & 3;
-					boardId = boardId >> 2;
-					toId = toId >> 2;
-					if(boardPosition != toPosition) difference = (difference << 2) | boardPosition | toPosition;
-				}
-				if(difference == type.VALUE)
+				if(isPieceAdded(board.VALUE, to, type))
 					result.add(to);
 			}
 		}
@@ -245,20 +266,12 @@ public class Ai {
 		return null;
 	}
 	
-	private Set<Long> getLosses(Set<Long> from, Set<Long> to) {
+	private Set<Long> getReachablePositions(Set<Long> from, Set<Long> to, boolean byOpponent) {
 		Set<Long> result = new HashSet<Long>();
 		for(Long board : from)
-			if(isReachable(board, to, true))
+			if(isReachable(board, to, byOpponent))
 				result.add(board);
 
-		return result;
-	}
-	
-	private Set<Long> getWins(Set<Long> from, Set<Long> to) {
-		Set<Long> result = new HashSet<Long>();
-		for(Long board : from)
-			if(isReachable(board, to, false))
-				result.add(board);
 		return result;
 	}
 	
@@ -269,9 +282,8 @@ public class Ai {
 		return false;
 	}
 	
-	Map<PositionState, Set<Long>> p;
+	private Map<PositionState, Set<Long>> p;
 	private Map<Long, Position> minimaxPositions;
 	private Random random;
-	private Data data;
 	
 }

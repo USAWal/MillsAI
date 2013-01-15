@@ -2,7 +2,6 @@ package de.zilant.mills.three;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -47,6 +46,16 @@ public class Data {
 			dbQueue.stop(true);
 			throw new Exception(e);
 		}
+	}
+	
+	public void clean() {
+		dbQueue.execute(new SQLiteJob<Object>() {
+			@Override
+			protected Object job(SQLiteConnection connection) throws Throwable {
+				connection.exec(CLEAN_POSITIONS);
+				return null;
+			}
+		});
 	}
 	
 	public void addBoard(final Map<PositionState, Set<Long>> positions) {
@@ -118,6 +127,8 @@ public class Data {
 			");";
 	private static final String INSERT_BOARD                   = "INSERT OR IGNORE INTO boards (id, state) VALUES (:id, :state);";
 	private static final String SELECT_BOARDS_BY_STATE         = "SELECT * FROM boards WHERE state = :state;";
+	
+	private static final String CLEAN_POSITIONS                = "DELETE FROM boards;";
 	
 	private static final long   DATABASE_INTIALIZATION_TIMEOUT = 1500;
 	
