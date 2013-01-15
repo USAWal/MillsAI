@@ -113,7 +113,7 @@ public class Game extends Component implements MouseListener {
 
 			@Override
 			protected Position doInBackground() throws Exception {
-				return ai.getMove(board, true);
+				return ai.getMove(board);
 			}
 			
 			@Override

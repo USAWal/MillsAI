@@ -81,7 +81,7 @@ public class Position {
 		return VALUE == other.VALUE && state == other.state;
 	}
 	
-	private static int getNumberOf(long value, PieceType type) {	
+	public static int getNumberOf(long value, PieceType type) {	
 		int result = 0;
 		do {
 			if((value & 3) == type.VALUE) result++;

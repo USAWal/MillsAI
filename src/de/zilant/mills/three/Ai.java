@@ -1,7 +1,6 @@
 package de.zilant.mills.three;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumMap;
 import java.util.HashSet;
@@ -12,14 +11,56 @@ import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
-
-import javax.management.ImmutableDescriptor;
-
-import com.sun.corba.se.impl.interceptors.PICurrent;
+import java.util.logging.Logger;
 
 public class Ai {
 	
+	public Ai() {
+		p = new EnumMap<PositionState, Set<Long>>(PositionState.class);
+		p.put(PositionState.WIN,          new TreeSet<Long>());
+		p.put(PositionState.ONLY_TO_WIN,  new TreeSet<Long>());
+		p.put(PositionState.TO_WIN,       new TreeSet<Long>());
+		p.put(PositionState.DRAW,         new TreeSet<Long>());
+		p.put(PositionState.TO_LOSS,      new TreeSet<Long>());
+		p.put(PositionState.ONLY_TO_LOSS, new TreeSet<Long>());
+		p.put(PositionState.LOSS,         new TreeSet<Long>());
+		random = new Random();
+		
+		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Evaluation was started.");
+		
+		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Evaluate:\twins and losses.");
+		fillWinsDrawsLosses();
+		
+		Set<Long> losses3x3 = new HashSet<Long>(p.get(PositionState.LOSS));
+		
+		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Evaluate:\tonly to losses.");
+		fillOnlyToLosses();
+		
+		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Evaluate:\talso to losses");
+		fillToLosses();
+		
+		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Evaluate:\tonly to wins.");
+		fillOnlyToWins();
+
+		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Evaluate:\talso to wins.");
+		fillToWins();
+
+		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Start minimax evaluation.");
+		minimaxPositions = new TreeMap<Long, Position>();
+	    startMinimaxWith(new Position(0), true);
+	    startMinimaxWith(new Position(0), false);
+		for(Position position : minimaxPositions.values())
+			p.get(position.getState()).add(position.VALUE);
+		p.get(PositionState.LOSS).removeAll(losses3x3);
+		
+		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Evaluation is just finished.");
+	}
+	
 	public Map<PositionState, Set<Long>> getPositions() { return p; }
+	
+	public Position getMove(Position position) {
+		return null;
+	}
 	
 	public static void main (String ... args) {
 		try {
@@ -69,76 +110,64 @@ public class Ai {
 				}		
 	}
 	
-	public Ai() {
-		p = new EnumMap<PositionState, Set<Long>>(PositionState.class);
-		p.put(PositionState.WIN,          new TreeSet<Long>());
-		p.put(PositionState.ONLY_TO_WIN,  new TreeSet<Long>());
-		p.put(PositionState.TO_WIN,       new TreeSet<Long>());
-		p.put(PositionState.DRAW,         new TreeSet<Long>());
-		p.put(PositionState.TO_LOSS,      new TreeSet<Long>());
-		p.put(PositionState.ONLY_TO_LOSS, new TreeSet<Long>());
-		p.put(PositionState.LOSS,         new TreeSet<Long>());
-		random = new Random();
-		
-		fillWinsDrawsLosses();
-		
-		Set<Long> losses3x3 = new HashSet<Long>(p.get(PositionState.LOSS));
-		Set<Long> newLosses = getReachablePositions(p.get(PositionState.DRAW), p.get(PositionState.LOSS), true);
+	private void fillOnlyToLosses() {
+		Collection<Long> newLosses = getReachablePositions(true, p.get(PositionState.DRAW), p.get(PositionState.LOSS));
 		p.get(PositionState.DRAW).removeAll(newLosses);
 		p.get(PositionState.ONLY_TO_LOSS).addAll(newLosses);
 				
 		while(!newLosses.isEmpty()) {
 			Set<Long> onlyToLosses = new HashSet<Long>();
-			for(Long position : getReachablePositions(p.get(PositionState.DRAW), newLosses, false))
+			for(Long position : getReachablePositions(false, p.get(PositionState.DRAW), newLosses))
 				if(!isReachable(position, p.get(PositionState.WIN), false) && !isReachable(position, p.get(PositionState.DRAW), false))
 					onlyToLosses.add(position);
-			newLosses = getReachablePositions(p.get(PositionState.DRAW), onlyToLosses, true);
+			newLosses = getReachablePositions(true, p.get(PositionState.DRAW), onlyToLosses);
 			p.get(PositionState.DRAW).removeAll(newLosses);
 			p.get(PositionState.ONLY_TO_LOSS).addAll(newLosses);
-		}
-		newLosses = p.get(PositionState.ONLY_TO_LOSS);
+		}		
+	}
+	
+	private void fillToLosses() {
+		Collection<Long> newLosses = p.get(PositionState.ONLY_TO_LOSS);
 		boolean prolonge = false;
 		do {
 			Set<Long> onlyToLosses = new HashSet<Long>();
 			Set<Long> losses = new HashSet<Long>(p.get(PositionState.ONLY_TO_LOSS));
 			losses.addAll(p.get(PositionState.TO_LOSS));
-			for(Long position : getReachablePositions(losses, losses, false))
+			for(Long position : getReachablePositions(false, losses, losses))
 				if(!isReachable(position, p.get(PositionState.WIN), false) && !isReachable(position, p.get(PositionState.DRAW), false))
 					onlyToLosses.add(position);
-			newLosses = getReachablePositions(p.get(PositionState.DRAW), onlyToLosses, true);
+			newLosses = getReachablePositions(true, p.get(PositionState.DRAW), onlyToLosses);
 			p.get(PositionState.DRAW).removeAll(newLosses);
 			p.get(PositionState.TO_LOSS).addAll(newLosses);
 			prolonge = !newLosses.isEmpty();
 			
 			losses = new HashSet<Long>(p.get(PositionState.ONLY_TO_LOSS));
 			losses.addAll(p.get(PositionState.TO_LOSS));
-			for(Long position : getReachablePositions(p.get(PositionState.DRAW), newLosses, false))
+			for(Long position : getReachablePositions(false, p.get(PositionState.DRAW), newLosses))
 				if(!isReachable(position, p.get(PositionState.WIN), false) && !isReachable(position, p.get(PositionState.DRAW), false))
 					onlyToLosses.add(position);
-			newLosses = getReachablePositions(p.get(PositionState.DRAW), onlyToLosses, true);
+			newLosses = getReachablePositions(true, p.get(PositionState.DRAW), onlyToLosses);
 			p.get(PositionState.DRAW).removeAll(newLosses);
 			p.get(PositionState.TO_LOSS).addAll(newLosses);
-		} while(!newLosses.isEmpty() || prolonge);
-		
-		
-		Set<Long> toWins = null;
+		} while(!newLosses.isEmpty() || prolonge);		
+	}
+	
+	private void fillOnlyToWins() {
+		Collection<Long> toWins = null;
 		Set<Long> onlyToWins = null;
 		
 		do {
-			toWins = getReachablePositions(p.get(PositionState.DRAW), p.get(PositionState.WIN), false);
-			toWins.addAll(getReachablePositions(p.get(PositionState.DRAW), p.get(PositionState.ONLY_TO_WIN), false));
+			toWins = getReachablePositions(false, p.get(PositionState.DRAW), p.get(PositionState.WIN), p.get(PositionState.ONLY_TO_WIN));
 			p.get(PositionState.DRAW).removeAll(toWins);
 			
-			Set<Long> filteredLosses = getReachablePositions(p.get(PositionState.TO_LOSS), p.get(PositionState.WIN), false);
-			filteredLosses.addAll(getReachablePositions(p.get(PositionState.TO_LOSS), p.get(PositionState.ONLY_TO_WIN), false));
+			Collection<Long> filteredLosses = getReachablePositions(false, p.get(PositionState.TO_LOSS), p.get(PositionState.WIN), p.get(PositionState.ONLY_TO_WIN));
 			p.get(PositionState.TO_LOSS).removeAll(filteredLosses);
-			Set<Long> filteredOlnlyToLosses = getReachablePositions(p.get(PositionState.ONLY_TO_LOSS), p.get(PositionState.WIN), false);
-			filteredOlnlyToLosses.addAll(getReachablePositions(p.get(PositionState.ONLY_TO_LOSS), p.get(PositionState.ONLY_TO_WIN), false));
+			Collection<Long> filteredOlnlyToLosses = getReachablePositions(false, p.get(PositionState.ONLY_TO_LOSS), p.get(PositionState.WIN), p.get(PositionState.ONLY_TO_WIN));
 			p.get(PositionState.ONLY_TO_LOSS).removeAll(filteredOlnlyToLosses);
 			
 			onlyToWins = new HashSet<Long>();
 			
-			for(Long win : getReachablePositions(toWins, toWins, true))
+			for(Long win : getReachablePositions(true, toWins, toWins))
 				if(!isReachable(win, p.get(PositionState.TO_LOSS), true) && !isReachable(win, p.get(PositionState.ONLY_TO_LOSS), true) && !isReachable(win, p.get(PositionState.DRAW), true))
 					onlyToWins.add(win);
 			
@@ -152,33 +181,16 @@ public class Ai {
 			p.get(PositionState.DRAW).addAll(toWins);
 			p.get(PositionState.DRAW).removeAll(onlyToWins);
 			p.get(PositionState.ONLY_TO_WIN).addAll(onlyToWins);
-		} while(!onlyToWins.isEmpty());
-
-		
-		toWins = new HashSet<Long>(p.get(PositionState.ONLY_TO_WIN));
-		toWins.addAll(p.get(PositionState.WIN));
-		
-		do {
-			Set<Long> newWins = getReachablePositions(p.get(PositionState.DRAW), toWins, false);
-			toWins = new HashSet<Long>(p.get(PositionState.DRAW));
-			for(Long board : p.get(PositionState.DRAW)) {
-				if(!isReachable(board, newWins, true))
-					toWins.remove(board);
-			}
+		} while(!onlyToWins.isEmpty());		
+	}
+	
+	private void fillToWins() {
+		Collection<Long> toWins = getReachablePositions(true, p.get(PositionState.DRAW), getReachablePositions(false, p.get(PositionState.DRAW), p.get(PositionState.WIN), p.get(PositionState.ONLY_TO_WIN)));
+		while(!toWins.isEmpty()) {
 			p.get(PositionState.DRAW).removeAll(toWins);
 			p.get(PositionState.TO_WIN).addAll(toWins);
-		} while(toWins.size() > 0);
-		
-		
-
-		minimaxPositions = new TreeMap<Long, Position>();
-		getMove(new Position(0), true);
-		getMove(new Position(0), false);
-		for(Position position : minimaxPositions.values())
-			p.get(position.getState()).add(position.VALUE);
-		p.get(PositionState.LOSS).removeAll(losses3x3);
-		
-		System.out.println("Finish");
+			toWins = getReachablePositions(true, p.get(PositionState.DRAW), getReachablePositions(false, p.get(PositionState.DRAW), toWins));
+		}		
 	}
 	
 	private boolean isPieceAdded(Long from, Long to, PieceType type) {
@@ -206,7 +218,7 @@ public class Ai {
 		return result;
 	}
 
-	public Position getMove(Position board, boolean isMax) {
+	private Position startMinimaxWith(Position board, boolean isMax) {
 		PieceType type = isMax ? PieceType.MINE : PieceType.OPPONENTS;
 		if(board.NUMBER_OF_MY_PIECES + board.NUMBER_OF_OPPONENTS_PIECES > (isMax ? 4 : 5)) {
 			
@@ -215,8 +227,6 @@ public class Ai {
 					isMax && rawState >= PositionState.LOSS.VALUE || !isMax && rawState <= PositionState.WIN.VALUE;
 					rawState += isMax ? -1 : 1) {
 				Set<Long> boards = p.get(PositionState.getStateOf(rawState));
-				//if(!isMax && (board.NUMBER_OF_MY_PIECES + board.NUMBER_OF_OPPONENTS_PIECES) == 5 && rawState == PositionState.ONLY_TO_LOSS.VALUE)
-				//	boards.addAll(losses_with_mills);
 				if(!boards.isEmpty()) {
 					List<Long> result = getAppropriateMove(board, boards, type);
 					if(!result.isEmpty()) return new Position(result.get(random.nextInt(result.size())), PositionState.getStateOf(rawState));
@@ -236,7 +246,7 @@ public class Ai {
 					else if(variant.hasMill(PieceType.MINE))
 						variant.setState(PositionState.WIN);
 					else
-						variant.setState(getMove(variant, !isMax).getState());
+						variant.setState(startMinimaxWith(variant, !isMax).getState());
 					if(isMax) {
 						minimaxPositions.put(variant.VALUE, variant);
 						long value = (variant.VALUE & 0x3F000) >> 12 | variant.VALUE & 0xFC0 | (variant.VALUE & 0x3F) << 12;
@@ -266,12 +276,19 @@ public class Ai {
 		return null;
 	}
 	
-	private Set<Long> getReachablePositions(Set<Long> from, Set<Long> to, boolean byOpponent) {
+	private Collection<Long> getReachablePositions(boolean byOpponent, Collection<Long> from, Collection<Long> to) {
 		Set<Long> result = new HashSet<Long>();
 		for(Long board : from)
 			if(isReachable(board, to, byOpponent))
 				result.add(board);
 
+		return result;
+	}
+	
+	private Collection<Long> getReachablePositions( boolean byOpponent, Collection<Long> from, Collection<Long> ... toes) {
+		Collection<Long> result = new HashSet<Long>();
+		for(Collection<Long> to : toes)
+			result.addAll(getReachablePositions(byOpponent, from, to));
 		return result;
 	}
 	
