@@ -28,7 +28,7 @@ public class Game extends Component implements MouseListener {
 		whites = new ArrayList<Point>();
 		blacks = new ArrayList<Point>();
 		board = new Position(0);
-		ai = new Ai();
+		evaluation = new Evaluation();
 		//aiMove();
 	}
 	
@@ -113,7 +113,7 @@ public class Game extends Component implements MouseListener {
 
 			@Override
 			protected Position doInBackground() throws Exception {
-				return ai.getMove(board);
+				return evaluation.getMove(board);
 			}
 			
 			@Override
@@ -136,7 +136,7 @@ public class Game extends Component implements MouseListener {
 	List<Point> whites;
 	List<Point> blacks;
 	Position board;
-	Ai ai;
+	Evaluation evaluation;
 	int movingPiecePosition;
 	
 	@Override

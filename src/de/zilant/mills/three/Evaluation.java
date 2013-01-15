@@ -13,9 +13,9 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.logging.Logger;
 
-public class Ai {
+public class Evaluation {
 	
-	public Ai() {
+	public Evaluation() {
 		p = new EnumMap<PositionState, Set<Long>>(PositionState.class);
 		p.put(PositionState.WIN,          new TreeSet<Long>());
 		p.put(PositionState.ONLY_TO_WIN,  new TreeSet<Long>());
@@ -67,8 +67,8 @@ public class Ai {
 			Data data = new Data("tmp/database");
 			try {
 				data.clean();
-				Ai anAi = new Ai();
-				data.addBoard(anAi.getPositions());
+				Evaluation anEvaluation = new Evaluation();
+				data.addBoard(anEvaluation.getPositions());
 			} finally {
 				data.release();
 			}
