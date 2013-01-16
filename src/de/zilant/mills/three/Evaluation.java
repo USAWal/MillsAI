@@ -5,9 +5,7 @@ import java.util.Collection;
 import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Map;
-import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -198,33 +196,33 @@ public class Evaluation {
 		return false;
 	}
 	
-	private List<Long> getAppropriateMove(Position board, Collection<Long> boards, PieceType type) {
+	private List<Long> getAppropriateMove(Position position, Collection<Long> toes, PieceType type) {
 		List<Long> result = new ArrayList<Long>();
-		boolean isMiddleStage = board.NUMBER_OF_MY_PIECES == 3 && board.NUMBER_OF_OPPONENTS_PIECES == 3;
-		for(Long to : boards) {
+		boolean isMiddleStage = position.NUMBER_OF_MY_PIECES == 3 && position.NUMBER_OF_OPPONENTS_PIECES == 3;
+		for(Long to : toes) {
 			if(isMiddleStage) {
-				if(Position.isReachable(board.VALUE, to, false))
+				if(Position.isReachable(position.VALUE, to, false))
 					result.add(to);
 			} else {
-				if(isPieceAdded(board.VALUE, to, type))
+				if(isPieceAdded(position.VALUE, to, type))
 					result.add(to);
 			}
 		}
 		return result;
 	}
 
-	private PositionState startMinimaxWith(Position board, boolean isMax) {
+	private PositionState startMinimaxWith(Position position, boolean isMax) {
 		PieceType type = isMax ? PieceType.MINE : PieceType.OPPONENTS;
-		if(board.NUMBER_OF_MY_PIECES + board.NUMBER_OF_OPPONENTS_PIECES > (isMax ? 4 : 5)) {
+		if(position.NUMBER_OF_MY_PIECES + position.NUMBER_OF_OPPONENTS_PIECES > (isMax ? 4 : 5)) {
 			
 			for(
 					int rawState = isMax ? PositionState.WIN.VALUE : PositionState.LOSS.VALUE;
 					isMax && rawState >= PositionState.LOSS.VALUE || !isMax && rawState <= PositionState.WIN.VALUE;
 					rawState += isMax ? -1 : 1) {
 				PositionState positionState = PositionState.getStateOf(rawState);
-				Set<Long> boards = p.get(positionState);
-				if(!boards.isEmpty()) {
-					List<Long> result = getAppropriateMove(board, boards, type);
+				Set<Long> positions = p.get(positionState);
+				if(!positions.isEmpty()) {
+					List<Long> result = getAppropriateMove(position, positions, type);
 					if(!result.isEmpty()) return positionState;
 				}
 			}
@@ -232,9 +230,10 @@ public class Evaluation {
 			return null;
 		}
 		PositionState result = null;
-		for(int position = 0; position < 9; position++) {
-			Position variant = board.putTo(position, type);
-			if(variant != null) {
+		for(long value = type.VALUE << 16; value > 0; value >>= 2) {
+			if((position.VALUE & value) == 0 && (position.VALUE & (isMax ? value >> 1 : value << 1)) == 0) {
+				long a = position.VALUE & ~value;
+				Position variant = new Position(position.VALUE | value);
 				Position evaluated = minimaxPositions.get(variant.VALUE);
 				if(evaluated == null) {
 					if(variant.hasMill(PieceType.OPPONENTS))
@@ -245,12 +244,12 @@ public class Evaluation {
 						variant.setState(startMinimaxWith(variant, !isMax));
 					if(isMax) {
 						minimaxPositions.put(variant.VALUE, variant);
-						long value = (variant.VALUE & 0x3F000) >> 12 | variant.VALUE & 0xFC0 | (variant.VALUE & 0x3F) << 12;
-						minimaxPositions.put(value, new Position(value, variant.getState()));
-						value = (variant.VALUE & 0x30C30) >> 4 | variant.VALUE & 0xC30C | (variant.VALUE & 0x30C3) << 4;
-						minimaxPositions.put(value, new Position(value, variant.getState()));
-						value = (value & 0x3F000) >> 12 | value & 0xFC0 | (value & 0x3F) << 12;
-						minimaxPositions.put(value, new Position(value, variant.getState()));
+						long symmetricValue = (variant.VALUE & 0x3F000) >> 12 | variant.VALUE & 0xFC0 | (variant.VALUE & 0x3F) << 12;
+						minimaxPositions.put(symmetricValue, new Position(symmetricValue, variant.getState()));
+						symmetricValue = (symmetricValue & 0x30C30) >> 4 | symmetricValue & 0xC30C | (symmetricValue & 0x30C3) << 4;
+						minimaxPositions.put(symmetricValue, new Position(symmetricValue, variant.getState()));
+						symmetricValue = (symmetricValue & 0x3F000) >> 12 | symmetricValue & 0xFC0 | (symmetricValue & 0x3F) << 12;
+						minimaxPositions.put(symmetricValue, new Position(symmetricValue, variant.getState()));
 					}
 				} else
 					variant = evaluated;
@@ -265,9 +264,9 @@ public class Evaluation {
 	
 	private Collection<Long> getReachablePositions(boolean byOpponent, Collection<Long> from, Collection<Long> to) {
 		Set<Long> result = new HashSet<Long>();
-		for(Long board : from)
-			if(isReachable(board, to, byOpponent))
-				result.add(board);
+		for(Long position : from)
+			if(isReachable(position, to, byOpponent))
+				result.add(position);
 
 		return result;
 	}
