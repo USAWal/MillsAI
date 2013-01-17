@@ -13,22 +13,23 @@ import java.util.logging.Logger;
 
 public class Evaluation {
 	
-	public Evaluation() {
-		p = new EnumMap<PositionState, Set<Long>>(PositionState.class);
-		p.put(PositionState.WIN,          new TreeSet<Long>());
-		p.put(PositionState.ONLY_TO_WIN,  new TreeSet<Long>());
-		p.put(PositionState.TO_WIN,       new TreeSet<Long>());
-		p.put(PositionState.DRAW,         new TreeSet<Long>());
-		p.put(PositionState.TO_LOSS,      new TreeSet<Long>());
-		p.put(PositionState.ONLY_TO_LOSS, new TreeSet<Long>());
-		p.put(PositionState.LOSS,         new TreeSet<Long>());
+	public Evaluation(Rules rules) {
+		this.rules = rules;
+		positions = new EnumMap<PositionState, Set<Long>>(PositionState.class);
+		positions.put(PositionState.WIN,          new TreeSet<Long>());
+		positions.put(PositionState.ONLY_TO_WIN,  new TreeSet<Long>());
+		positions.put(PositionState.TO_WIN,       new TreeSet<Long>());
+		positions.put(PositionState.DRAW,         new TreeSet<Long>());
+		positions.put(PositionState.TO_LOSS,      new TreeSet<Long>());
+		positions.put(PositionState.ONLY_TO_LOSS, new TreeSet<Long>());
+		positions.put(PositionState.LOSS,         new TreeSet<Long>());
 		
 		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Evaluation was started.");
 		
 		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Evaluate:\twins and losses.");
 		fillWinsDrawsLosses();
 		
-		Set<Long> losses3x3 = new HashSet<Long>(p.get(PositionState.LOSS));
+		Set<Long> losses3x3 = new HashSet<Long>(positions.get(PositionState.LOSS));
 		
 		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Evaluate:\tonly to losses.");
 		fillOnlyToLosses();
@@ -43,24 +44,24 @@ public class Evaluation {
 		fillToWins();
 
 		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Start minimax evaluation.");
-		minimaxPositions = new TreeMap<Long, Position>();
-	    startMinimaxWith(new Position(0), true);
-	    startMinimaxWith(new Position(0), false);
-		for(Position position : minimaxPositions.values())
-			p.get(position.getState()).add(position.VALUE);
-		p.get(PositionState.LOSS).removeAll(losses3x3);
+		minimaxPositions = new TreeMap<Long, PositionState>();
+	    startMinimaxWith(0, true);
+	    startMinimaxWith(0, false);
+		for(Long position : minimaxPositions.keySet())
+			positions.get(minimaxPositions.get(position)).add(position);
+		positions.get(PositionState.LOSS).removeAll(losses3x3);
 		
 		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Evaluation is just finished.");
 	}
 	
-	public Map<PositionState, Set<Long>> getPositions() { return p; }
+	public Map<PositionState, Set<Long>> getPositions() { return positions; }
 	
 	public static void main (String ... args) {
 		try {
 			Data data = new Data("tmp/database");
 			try {
 				data.clean();
-				Evaluation anEvaluation = new Evaluation();
+				Evaluation anEvaluation = new Evaluation(new ThreeMensMorrisRules());
 				data.addBoard(anEvaluation.getPositions());
 			} finally {
 				data.release();
@@ -85,63 +86,62 @@ public class Evaluation {
 			for(long bottomLine = topLine; bottomLine <= 0x2A; bottomLine = increase(bottomLine))
 				for(long centerLne = 0; centerLne <= 0x2A; centerLne = increase(centerLne)) {
 					Position position = new Position(topLine << 12 | centerLne << 6 | bottomLine);
-					if( position.NUMBER_OF_MY_PIECES == 3 && position.NUMBER_OF_OPPONENTS_PIECES == 3) {
-						boolean haveIMill = position.hasMill(PieceType.MINE);
-						boolean hasOpponentMill = position.hasMill(PieceType.OPPONENTS);
+					if( rules.howManyPiecesOf(position.VALUE, PieceType.MINE) == 3 && rules.howManyPiecesOf(position.VALUE, PieceType.OPPONENTS) == 3) {
+						PieceType milled = rules.whoHasAMill(position.VALUE);
 						Position symmetricPosition = new Position(bottomLine << 12 | centerLne << 6 | topLine);
-						if(haveIMill && !hasOpponentMill) {
-							p.get(PositionState.WIN).add(position.VALUE);
-							p.get(PositionState.WIN).add(symmetricPosition.VALUE);
-						} else if(!haveIMill && hasOpponentMill) {
-							p.get(PositionState.LOSS).add(position.VALUE);
-							p.get(PositionState.LOSS).add(symmetricPosition.VALUE);
-						} else if(!haveIMill && !hasOpponentMill) {
-							p.get(PositionState.DRAW).add(position.VALUE);
-							p.get(PositionState.DRAW).add(symmetricPosition.VALUE);
+						if(position.BLOCKED == PieceType.OPPONENTS || milled == PieceType.MINE) {
+							positions.get(PositionState.WIN).add(position.VALUE);
+							positions.get(PositionState.WIN).add(symmetricPosition.VALUE);
+						} else if(position.BLOCKED == PieceType.MINE || milled == PieceType.OPPONENTS) {
+							positions.get(PositionState.LOSS).add(position.VALUE);
+							positions.get(PositionState.LOSS).add(symmetricPosition.VALUE);
+						} else if(milled != PieceType.BOTH) {
+							positions.get(PositionState.DRAW).add(position.VALUE);
+							positions.get(PositionState.DRAW).add(symmetricPosition.VALUE);
 						}
 					}
 				}		
 	}
 	
 	private void fillOnlyToLosses() {
-		Collection<Long> newLosses = getReachablePositions(true, p.get(PositionState.DRAW), p.get(PositionState.LOSS));
-		p.get(PositionState.DRAW).removeAll(newLosses);
-		p.get(PositionState.ONLY_TO_LOSS).addAll(newLosses);
+		Collection<Long> newLosses = getReachablePositions(PieceType.OPPONENTS, positions.get(PositionState.DRAW), positions.get(PositionState.LOSS));
+		positions.get(PositionState.DRAW).removeAll(newLosses);
+		positions.get(PositionState.ONLY_TO_LOSS).addAll(newLosses);
 				
 		while(!newLosses.isEmpty()) {
 			Set<Long> onlyToLosses = new HashSet<Long>();
-			for(Long position : getReachablePositions(false, p.get(PositionState.DRAW), newLosses))
-				if(!isReachable(position, p.get(PositionState.WIN), false) && !isReachable(position, p.get(PositionState.DRAW), false))
+			for(Long position : getReachablePositions(PieceType.MINE, positions.get(PositionState.DRAW), newLosses))
+				if(!isReachableBy(position, positions.get(PositionState.WIN), PieceType.MINE) && !isReachableBy(position, positions.get(PositionState.DRAW), PieceType.MINE))
 					onlyToLosses.add(position);
-			newLosses = getReachablePositions(true, p.get(PositionState.DRAW), onlyToLosses);
-			p.get(PositionState.DRAW).removeAll(newLosses);
-			p.get(PositionState.ONLY_TO_LOSS).addAll(newLosses);
+			newLosses = getReachablePositions(PieceType.OPPONENTS, positions.get(PositionState.DRAW), onlyToLosses);
+			positions.get(PositionState.DRAW).removeAll(newLosses);
+			positions.get(PositionState.ONLY_TO_LOSS).addAll(newLosses);
 		}		
 	}
 	
 	private void fillToLosses() {
-		Collection<Long> newLosses = p.get(PositionState.ONLY_TO_LOSS);
+		Collection<Long> newLosses = positions.get(PositionState.ONLY_TO_LOSS);
 		boolean prolonge = false;
 		do {
 			Set<Long> onlyToLosses = new HashSet<Long>();
-			Set<Long> losses = new HashSet<Long>(p.get(PositionState.ONLY_TO_LOSS));
-			losses.addAll(p.get(PositionState.TO_LOSS));
-			for(Long position : getReachablePositions(false, losses, losses))
-				if(!isReachable(position, p.get(PositionState.WIN), false) && !isReachable(position, p.get(PositionState.DRAW), false))
+			Set<Long> losses = new HashSet<Long>(positions.get(PositionState.ONLY_TO_LOSS));
+			losses.addAll(positions.get(PositionState.TO_LOSS));
+			for(Long position : getReachablePositions(PieceType.MINE, losses, losses))
+				if(!isReachableBy(position, positions.get(PositionState.WIN), PieceType.MINE) && !isReachableBy(position, positions.get(PositionState.DRAW), PieceType.MINE))
 					onlyToLosses.add(position);
-			newLosses = getReachablePositions(true, p.get(PositionState.DRAW), onlyToLosses);
-			p.get(PositionState.DRAW).removeAll(newLosses);
-			p.get(PositionState.TO_LOSS).addAll(newLosses);
+			newLosses = getReachablePositions(PieceType.OPPONENTS, positions.get(PositionState.DRAW), onlyToLosses);
+			positions.get(PositionState.DRAW).removeAll(newLosses);
+			positions.get(PositionState.TO_LOSS).addAll(newLosses);
 			prolonge = !newLosses.isEmpty();
 			
-			losses = new HashSet<Long>(p.get(PositionState.ONLY_TO_LOSS));
-			losses.addAll(p.get(PositionState.TO_LOSS));
-			for(Long position : getReachablePositions(false, p.get(PositionState.DRAW), newLosses))
-				if(!isReachable(position, p.get(PositionState.WIN), false) && !isReachable(position, p.get(PositionState.DRAW), false))
+			losses = new HashSet<Long>(positions.get(PositionState.ONLY_TO_LOSS));
+			losses.addAll(positions.get(PositionState.TO_LOSS));
+			for(Long position : getReachablePositions(PieceType.MINE, positions.get(PositionState.DRAW), newLosses))
+				if(!isReachableBy(position, positions.get(PositionState.WIN), PieceType.MINE) && !isReachableBy(position, positions.get(PositionState.DRAW), PieceType.MINE))
 					onlyToLosses.add(position);
-			newLosses = getReachablePositions(true, p.get(PositionState.DRAW), onlyToLosses);
-			p.get(PositionState.DRAW).removeAll(newLosses);
-			p.get(PositionState.TO_LOSS).addAll(newLosses);
+			newLosses = getReachablePositions(PieceType.OPPONENTS, positions.get(PositionState.DRAW), onlyToLosses);
+			positions.get(PositionState.DRAW).removeAll(newLosses);
+			positions.get(PositionState.TO_LOSS).addAll(newLosses);
 		} while(!newLosses.isEmpty() || prolonge);		
 	}
 	
@@ -150,39 +150,39 @@ public class Evaluation {
 		Set<Long> onlyToWins = null;
 		
 		do {
-			toWins = getReachablePositions(false, p.get(PositionState.DRAW), p.get(PositionState.WIN), p.get(PositionState.ONLY_TO_WIN));
-			p.get(PositionState.DRAW).removeAll(toWins);
+			toWins = getReachablePositions(PieceType.MINE, positions.get(PositionState.DRAW), positions.get(PositionState.WIN), positions.get(PositionState.ONLY_TO_WIN));
+			positions.get(PositionState.DRAW).removeAll(toWins);
 			
-			Collection<Long> filteredLosses = getReachablePositions(false, p.get(PositionState.TO_LOSS), p.get(PositionState.WIN), p.get(PositionState.ONLY_TO_WIN));
-			p.get(PositionState.TO_LOSS).removeAll(filteredLosses);
-			Collection<Long> filteredOlnlyToLosses = getReachablePositions(false, p.get(PositionState.ONLY_TO_LOSS), p.get(PositionState.WIN), p.get(PositionState.ONLY_TO_WIN));
-			p.get(PositionState.ONLY_TO_LOSS).removeAll(filteredOlnlyToLosses);
+			Collection<Long> filteredLosses = getReachablePositions(PieceType.MINE, positions.get(PositionState.TO_LOSS), positions.get(PositionState.WIN), positions.get(PositionState.ONLY_TO_WIN));
+			positions.get(PositionState.TO_LOSS).removeAll(filteredLosses);
+			Collection<Long> filteredOlnlyToLosses = getReachablePositions(PieceType.MINE, positions.get(PositionState.ONLY_TO_LOSS), positions.get(PositionState.WIN), positions.get(PositionState.ONLY_TO_WIN));
+			positions.get(PositionState.ONLY_TO_LOSS).removeAll(filteredOlnlyToLosses);
 			
 			onlyToWins = new HashSet<Long>();
 			
-			for(Long win : getReachablePositions(true, toWins, toWins))
-				if(!isReachable(win, p.get(PositionState.TO_LOSS), true) && !isReachable(win, p.get(PositionState.ONLY_TO_LOSS), true) && !isReachable(win, p.get(PositionState.DRAW), true))
+			for(Long win : getReachablePositions(PieceType.OPPONENTS, toWins, toWins))
+				if(!isReachableBy(win, positions.get(PositionState.TO_LOSS), PieceType.OPPONENTS) && !isReachableBy(win, positions.get(PositionState.ONLY_TO_LOSS), PieceType.OPPONENTS) && !isReachableBy(win, positions.get(PositionState.DRAW), PieceType.OPPONENTS))
 					onlyToWins.add(win);
 			
 			
-			for(Long draw : p.get(PositionState.DRAW))
-				if((isReachable(draw, toWins, true) || isReachable(draw, filteredLosses, true) || isReachable(draw, filteredOlnlyToLosses, true)) && !isReachable(draw, p.get(PositionState.TO_LOSS), true) && !isReachable(draw, p.get(PositionState.ONLY_TO_LOSS), true) && !isReachable(draw, p.get(PositionState.DRAW), true))
+			for(Long draw : positions.get(PositionState.DRAW))
+				if((isReachableBy(draw, toWins, PieceType.OPPONENTS) || isReachableBy(draw, filteredLosses, PieceType.OPPONENTS) || isReachableBy(draw, filteredOlnlyToLosses, PieceType.OPPONENTS)) && !isReachableBy(draw, positions.get(PositionState.TO_LOSS), PieceType.OPPONENTS) && !isReachableBy(draw, positions.get(PositionState.ONLY_TO_LOSS), PieceType.OPPONENTS) && !isReachableBy(draw, positions.get(PositionState.DRAW), PieceType.OPPONENTS))
 					onlyToWins.add(draw);
 			
-			p.get(PositionState.TO_LOSS).addAll(filteredLosses);
-			p.get(PositionState.ONLY_TO_LOSS).addAll(filteredOlnlyToLosses);
-			p.get(PositionState.DRAW).addAll(toWins);
-			p.get(PositionState.DRAW).removeAll(onlyToWins);
-			p.get(PositionState.ONLY_TO_WIN).addAll(onlyToWins);
+			positions.get(PositionState.TO_LOSS).addAll(filteredLosses);
+			positions.get(PositionState.ONLY_TO_LOSS).addAll(filteredOlnlyToLosses);
+			positions.get(PositionState.DRAW).addAll(toWins);
+			positions.get(PositionState.DRAW).removeAll(onlyToWins);
+			positions.get(PositionState.ONLY_TO_WIN).addAll(onlyToWins);
 		} while(!onlyToWins.isEmpty());		
 	}
 	
 	private void fillToWins() {
-		Collection<Long> toWins = getReachablePositions(true, p.get(PositionState.DRAW), getReachablePositions(false, p.get(PositionState.DRAW), p.get(PositionState.WIN), p.get(PositionState.ONLY_TO_WIN)));
+		Collection<Long> toWins = getReachablePositions(PieceType.OPPONENTS, positions.get(PositionState.DRAW), getReachablePositions(PieceType.MINE, positions.get(PositionState.DRAW), positions.get(PositionState.WIN), positions.get(PositionState.ONLY_TO_WIN)));
 		while(!toWins.isEmpty()) {
-			p.get(PositionState.DRAW).removeAll(toWins);
-			p.get(PositionState.TO_WIN).addAll(toWins);
-			toWins = getReachablePositions(true, p.get(PositionState.DRAW), getReachablePositions(false, p.get(PositionState.DRAW), toWins));
+			positions.get(PositionState.DRAW).removeAll(toWins);
+			positions.get(PositionState.TO_WIN).addAll(toWins);
+			toWins = getReachablePositions(PieceType.OPPONENTS, positions.get(PositionState.DRAW), getReachablePositions(PieceType.MINE, positions.get(PositionState.DRAW), toWins));
 		}		
 	}
 	
@@ -196,33 +196,33 @@ public class Evaluation {
 		return false;
 	}
 	
-	private List<Long> getAppropriateMove(Position position, Collection<Long> toes, PieceType type) {
+	private List<Long> getAppropriateMove(long position, Collection<Long> toes, PieceType type) {
 		List<Long> result = new ArrayList<Long>();
-		boolean isMiddleStage = position.NUMBER_OF_MY_PIECES == 3 && position.NUMBER_OF_OPPONENTS_PIECES == 3;
+		boolean isMiddleStage = rules.howManyPiecesOf(position, PieceType.MINE) == 3 && rules.howManyPiecesOf(position, PieceType.OPPONENTS) == 3;
 		for(Long to : toes) {
 			if(isMiddleStage) {
-				if(Position.isReachable(position.VALUE, to, false))
+				if(rules.isPositionReachableBy(position, to, PieceType.MINE))
 					result.add(to);
 			} else {
-				if(isPieceAdded(position.VALUE, to, type))
+				if(isPieceAdded(position, to, type))
 					result.add(to);
 			}
 		}
 		return result;
 	}
 
-	private PositionState startMinimaxWith(Position position, boolean isMax) {
+	private PositionState startMinimaxWith(long position, boolean isMax) {
 		PieceType type = isMax ? PieceType.MINE : PieceType.OPPONENTS;
-		if(position.NUMBER_OF_MY_PIECES + position.NUMBER_OF_OPPONENTS_PIECES > (isMax ? 4 : 5)) {
+		if(rules.howManyPiecesOf(position, PieceType.MINE) + rules.howManyPiecesOf(position, PieceType.OPPONENTS) > (isMax ? 4 : 5)) {
 			
 			for(
 					int rawState = isMax ? PositionState.WIN.VALUE : PositionState.LOSS.VALUE;
 					isMax && rawState >= PositionState.LOSS.VALUE || !isMax && rawState <= PositionState.WIN.VALUE;
 					rawState += isMax ? -1 : 1) {
 				PositionState positionState = PositionState.getStateOf(rawState);
-				Set<Long> positions = p.get(positionState);
-				if(!positions.isEmpty()) {
-					List<Long> result = getAppropriateMove(position, positions, type);
+				Set<Long> filteredPositionsByState = positions.get(positionState);
+				if(!filteredPositionsByState.isEmpty()) {
+					List<Long> result = getAppropriateMove(position, filteredPositionsByState, type);
 					if(!result.isEmpty()) return positionState;
 				}
 			}
@@ -231,61 +231,61 @@ public class Evaluation {
 		}
 		PositionState result = null;
 		for(long value = type.VALUE << 16; value > 0; value >>= 2) {
-			if((position.VALUE & value) == 0 && (position.VALUE & (isMax ? value >> 1 : value << 1)) == 0) {
-				long a = position.VALUE & ~value;
-				Position variant = new Position(position.VALUE | value);
-				Position evaluated = minimaxPositions.get(variant.VALUE);
-				if(evaluated == null) {
-					if(variant.hasMill(PieceType.OPPONENTS))
-						variant.setState(PositionState.LOSS);
-					else if(variant.hasMill(PieceType.MINE))
-						variant.setState(PositionState.WIN);
+			if((position & value) == 0 && (position & (isMax ? value >> 1 : value << 1)) == 0) {
+				long variant = position | value;
+				PositionState state = PositionState.DRAW;
+				PositionState evaluatedState = minimaxPositions.get(variant);
+				if(evaluatedState == null) {
+					PieceType milled = rules.whoHasAMill(variant);
+					if(milled == PieceType.OPPONENTS)
+						state = PositionState.LOSS;
+					else if(milled == PieceType.MINE)
+						state = PositionState.WIN;
 					else
-						variant.setState(startMinimaxWith(variant, !isMax));
+						state = startMinimaxWith(variant, !isMax);
 					if(isMax) {
-						minimaxPositions.put(variant.VALUE, variant);
-						long symmetricValue = (variant.VALUE & 0x3F000) >> 12 | variant.VALUE & 0xFC0 | (variant.VALUE & 0x3F) << 12;
-						minimaxPositions.put(symmetricValue, new Position(symmetricValue, variant.getState()));
+						minimaxPositions.put(variant, state);
+						long symmetricValue = (variant & 0x3F000) >> 12 | variant & 0xFC0 | (variant & 0x3F) << 12;
+						minimaxPositions.put(symmetricValue, state);
 						symmetricValue = (symmetricValue & 0x30C30) >> 4 | symmetricValue & 0xC30C | (symmetricValue & 0x30C3) << 4;
-						minimaxPositions.put(symmetricValue, new Position(symmetricValue, variant.getState()));
+						minimaxPositions.put(symmetricValue, state);
 						symmetricValue = (symmetricValue & 0x3F000) >> 12 | symmetricValue & 0xFC0 | (symmetricValue & 0x3F) << 12;
-						minimaxPositions.put(symmetricValue, new Position(symmetricValue, variant.getState()));
+						minimaxPositions.put(symmetricValue, state);
 					}
 				} else
-					variant = evaluated;
-				int evaluatedState = variant.getState().VALUE;
-				if(result == null || isMax && evaluatedState > result.VALUE || !isMax && evaluatedState < result.VALUE)
-					result = variant.getState();
+					state = evaluatedState;
+				if(result == null || isMax && state.VALUE > result.VALUE || !isMax && state.VALUE < result.VALUE)
+					result = state;
 			}
 		}
 		
 		return result;
 	}
 	
-	private Collection<Long> getReachablePositions(boolean byOpponent, Collection<Long> from, Collection<Long> to) {
+	private Collection<Long> getReachablePositions(PieceType pieceType, Collection<Long> from, Collection<Long> to) {
 		Set<Long> result = new HashSet<Long>();
 		for(Long position : from)
-			if(isReachable(position, to, byOpponent))
+			if(isReachableBy(position, to, pieceType))
 				result.add(position);
 
 		return result;
 	}
 	
-	private Collection<Long> getReachablePositions( boolean byOpponent, Collection<Long> from, Collection<Long> ... toes) {
+	private Collection<Long> getReachablePositions(PieceType pieceType, Collection<Long> from, Collection<Long> ... toes) {
 		Collection<Long> result = new HashSet<Long>();
 		for(Collection<Long> to : toes)
-			result.addAll(getReachablePositions(byOpponent, from, to));
+			result.addAll(getReachablePositions(pieceType, from, to));
 		return result;
 	}
 	
-	private boolean isReachable(Long from, Collection<Long> to, boolean byOpponent) {
+	private boolean isReachableBy(Long from, Collection<Long> to, PieceType pieceType) {
 		for(Long position : to)
-			if(Position.isReachable(from, position, byOpponent))
+			if(rules.isPositionReachableBy(from, position, pieceType))
 				return true;
 		return false;
 	}
 	
-	private Map<PositionState, Set<Long>> p;
-	private Map<Long, Position> minimaxPositions;
-	
+	private Map<PositionState, Set<Long>> positions;
+	private Map<Long, PositionState> minimaxPositions;
+	private Rules rules;
 }

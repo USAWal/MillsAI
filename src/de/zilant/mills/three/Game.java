@@ -27,6 +27,7 @@ import javax.swing.SwingWorker;
 public class Game extends Component implements MouseListener {
 	
 	public Game(Data data) throws Exception {
+		rules = new ThreeMensMorrisRules();
 		movingPiecePosition = -1;
 		whites = new ArrayList<Point>();
 		blacks = new ArrayList<Point>();
@@ -83,26 +84,25 @@ public class Game extends Component implements MouseListener {
 	};
 	
 	private void moveTo(int x, int y) {
-		int position = y*3 + x;
+		int palceIndex = y*3 + x;
 		if(
-				board.NUMBER_OF_OPPONENTS_PIECES == 3 &&
-				board.NUMBER_OF_MY_PIECES == 3) {
+				rules.howManyPiecesOf(board.VALUE, PieceType.MINE) == 3 && rules.howManyPiecesOf(board.VALUE, PieceType.OPPONENTS) == 3) {
 			if(movingPiecePosition < 0) {
-				if(((board.VALUE >> position*2) & 3) == PieceType.OPPONENTS.VALUE) {
-					movingPiecePosition = position;
+				if(((board.VALUE >> palceIndex*2) & 3) == PieceType.OPPONENTS.VALUE) {
+					movingPiecePosition = palceIndex;
 				}
 				return;
 			}
-			long newBoardId = (board.VALUE & ~(3 << position*2)) | (PieceType.OPPONENTS.VALUE << position*2);
+			long newBoardId = (board.VALUE & ~(3 << palceIndex*2)) | (PieceType.OPPONENTS.VALUE << palceIndex*2);
 			newBoardId = newBoardId & ~(3 << movingPiecePosition*2);
 			Position newBoard = new Position(newBoardId);
 			movingPiecePosition = -1;
-			if(Position.isReachable(board.VALUE, newBoard.VALUE, true))
+			if(rules.isPositionReachableBy(board.VALUE, newBoard.VALUE, PieceType.OPPONENTS))
 				board = newBoard;
 			else
 				return;
 		} else {
-			Position newBoard = board.putTo(position, PieceType.OPPONENTS);
+			Position newBoard = putTo(palceIndex, PieceType.OPPONENTS);
 			if(newBoard != null)
 				board = newBoard;
 			else
@@ -112,15 +112,23 @@ public class Game extends Component implements MouseListener {
 		aiMove();
 	}
 	
+	private Position putTo(int placeIndex, PieceType pieceType) {
+		if(pieceType == PieceType.NONE) return null;
+		if(rules.howManyPiecesOf(board.VALUE, pieceType) >= 3) return null;
+		if((board.VALUE >> placeIndex * 2 & 3) != PieceType.NONE.VALUE) return null;
+		long positionValue = board.VALUE & ~(3 << placeIndex*2) | (pieceType.VALUE << placeIndex*2);
+		return new Position(positionValue, PositionState.DRAW);
+	} 
+	
 	private void aiMove() {
 		new SwingWorker<Position, Object>() {
 
 			@Override
 			protected Position doInBackground() throws Exception {
 				for(int rawState = PositionState.WIN.VALUE; rawState >= PositionState.LOSS.VALUE; rawState --) {
-					List<Position> boards = data.getBoardsByState(PositionState.getStateOf(rawState));
+					List<Long> boards = data.getBoardsByState(PositionState.getStateOf(rawState));
 					if(!boards.isEmpty()) {
-						List<Long> result = getAppropriateMove(board, boards, PieceType.MINE);
+						List<Long> result = getAppropriateMove(board.VALUE, boards, PieceType.MINE);
 						if(!result.isEmpty()) return new Position(result.get(random.nextInt(result.size())), PositionState.getStateOf(rawState));
 					}
 				}
@@ -141,16 +149,16 @@ public class Game extends Component implements MouseListener {
 				}
 			}
 			
-			private List<Long> getAppropriateMove(Position board, Collection<Position> boards, PieceType type) {
+			private List<Long> getAppropriateMove(Long board, Collection<Long> boards, PieceType type) {
 				List<Long> result = new ArrayList<Long>();
-				boolean isMiddleStage = board.NUMBER_OF_MY_PIECES == 3 && board.NUMBER_OF_OPPONENTS_PIECES == 3;
-				for(Position to : boards) {
+				boolean isMiddleStage = rules.howManyPiecesOf(board, PieceType.MINE) == 3 && rules.howManyPiecesOf(board, PieceType.OPPONENTS) == 3;
+				for(Long to : boards) {
 					if(isMiddleStage) {
-						if(Position.isReachable(board.VALUE, to.VALUE, false))
-							result.add(to.VALUE);
+						if(rules.isPositionReachableBy(board, to, PieceType.MINE))
+							result.add(to);
 					} else {
-						if(isPieceAdded(board.VALUE, to.VALUE, type))
-							result.add(to.VALUE);
+						if(isPieceAdded(board, to, type))
+							result.add(to);
 					}
 				}
 				return result;
@@ -175,6 +183,7 @@ public class Game extends Component implements MouseListener {
 	List<Point> blacks;
 	Position board;
 	int movingPiecePosition;
+	Rules rules;
 	
 	@Override
 	public void mouseClicked(MouseEvent e) {

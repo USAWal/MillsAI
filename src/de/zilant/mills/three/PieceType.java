@@ -1,6 +1,7 @@
 package de.zilant.mills.three;
 
 public enum PieceType {
+	BOTH      (4),
 	MINE      (2),
 	OPPONENTS (1),
 	NONE      (0);

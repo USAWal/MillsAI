@@ -4,17 +4,18 @@ public class Position {
 	
 	public Position(long value, PositionState state) {
 		VALUE                      = value;
-		NUMBER_OF_MY_PIECES        = getNumberOf(VALUE, PieceType.MINE);
-		NUMBER_OF_OPPONENTS_PIECES = getNumberOf(VALUE, PieceType.OPPONENTS);
-		this.state                 = state;
+		//NUMBER_OF_MY_PIECES        = getNumberOf(VALUE, PieceType.MINE);
+		//NUMBER_OF_OPPONENTS_PIECES = getNumberOf(VALUE, PieceType.OPPONENTS);
+		//this.state                 = state;
+		BLOCKED = PieceType.NONE;
 	}
 	
 	public Position(long value) { this(value, PositionState.DRAW); }
 	
-	public void setState(PositionState state) { this.state = state; }
-	public PositionState getState() { return state; }
+	//public void setState(PositionState state) { this.state = state; }
+	//public PositionState getState() { return state; }
 	
-	public boolean hasMill(PieceType pieceType) {
+	/*public boolean hasMill(PieceType pieceType) {
 		long lineMask   = pieceType == PieceType.OPPONENTS ? 0x0015 : 0x002A;
 		long columnMask = pieceType == PieceType.OPPONENTS ? 0x1041 : 0x2082;
 		
@@ -31,17 +32,9 @@ public class Position {
 		if((VALUE & diagonalMask) == diagonalMask) return true;
 		
 		return false;
-	}
+	}*/
 	
-	public Position putTo(int placeIndex, PieceType pieceType) {
-		if(pieceType == PieceType.NONE) return null;
-		if((pieceType == PieceType.MINE ? NUMBER_OF_MY_PIECES : NUMBER_OF_OPPONENTS_PIECES) >= 3) return null;
-		if((VALUE >> placeIndex * 2 & 3) != PieceType.NONE.VALUE) return null;
-		long positionValue = VALUE & ~(3 << placeIndex*2) | (pieceType.VALUE << placeIndex*2);
-		return new Position(positionValue, PositionState.DRAW);
-	} 
-	
-	public static boolean isReachable(Long from, Long to, boolean byOpponent) {
+	/*public static boolean isReachable(Long from, Long to, boolean byOpponent) {
 		
 		long differences = from ^ to;
 		int fromIndex    = -1;
@@ -66,22 +59,22 @@ public class Position {
 			return true;
 		
 		return false;
-	}
+	}*/
 	
-	@Override
+	/*@Override
 	public String toString() {
 		return "value is [" + VALUE + "], state is [" + state + "]";
-	}
+	}*/
 	
-	@Override
+	/*@Override
 	public boolean equals(Object obj) {
 		if(this == obj) return true;
 		if(!(obj instanceof Position)) return false;
 		Position other = (Position) obj;
 		return VALUE == other.VALUE && state == other.state;
-	}
+	}*/
 	
-	public static int getNumberOf(long value, PieceType type) {	
+	/*public static int getNumberOf(long value, PieceType type) {	
 		int result = 0;
 		do {
 			if((value & 3) == type.VALUE) result++;
@@ -89,11 +82,12 @@ public class Position {
 		} while(value != 0);
 
 		return result;
-	}
+	}*/
 
-	public final long     VALUE;
-	public final int      NUMBER_OF_MY_PIECES;
-	public final int      NUMBER_OF_OPPONENTS_PIECES;
-	private PositionState state;
+	public final PieceType BLOCKED;
+	public final long      VALUE;
+	//public final int       NUMBER_OF_MY_PIECES;
+	//public final int       NUMBER_OF_OPPONENTS_PIECES;
+	//private PositionState  state;
 	
 }

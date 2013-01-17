@@ -77,19 +77,17 @@ public class Data {
 		});
 	}
 	
-	public List<Position> getBoardsByState(final PositionState state) {
+	public List<Long> getBoardsByState(final PositionState state) {
 		try {
-			return dbQueue.execute(new SQLiteJob<List<Position>>() {
+			return dbQueue.execute(new SQLiteJob<List<Long>>() {
 				
 				@Override
-				protected List<Position> job(SQLiteConnection connection)
+				protected List<Long> job(SQLiteConnection connection)
 						throws Throwable {
 					selectByState.reset().bind(1, state.VALUE);
-					List<Position> result = new ArrayList<Position>();
+					List<Long> result = new ArrayList<Long>();
 					while(selectByState.step())
-						result.add(new Position(
-								selectByState.columnLong(0),
-								PositionState.getStateOf(selectByState.columnInt(1))));
+						result.add(Long.valueOf(selectByState.columnLong(0)));
 					
 					return result;
 				}
