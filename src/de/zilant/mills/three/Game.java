@@ -31,7 +31,7 @@ public class Game extends Component implements MouseListener {
 		movingPiecePosition = -1;
 		whites = new ArrayList<Point>();
 		blacks = new ArrayList<Point>();
-		board = new Position(0);
+		board = 0;
 		this.data = data;
 		random = new Random();
 		aiMove();
@@ -73,7 +73,7 @@ public class Game extends Component implements MouseListener {
 		int startY = 7*size.height/60;
 		int stepX = size.width/3;
 		int stepY = size.height/3;
-		long id = board.VALUE;
+		long id = board;
 		for(int position = 0; position < 9; position++) {
 			int value = 3 & (int) id;
 			id = id >> 2;
@@ -86,50 +86,50 @@ public class Game extends Component implements MouseListener {
 	private void moveTo(int x, int y) {
 		int palceIndex = y*3 + x;
 		if(
-				rules.howManyPiecesOf(board.VALUE, PieceType.MINE) == 3 && rules.howManyPiecesOf(board.VALUE, PieceType.OPPONENTS) == 3) {
+				rules.howManyPiecesOf(board, PieceType.MINE) == 3 && rules.howManyPiecesOf(board, PieceType.OPPONENTS) == 3) {
 			if(movingPiecePosition < 0) {
-				if(((board.VALUE >> palceIndex*2) & 3) == PieceType.OPPONENTS.VALUE) {
+				if(((board >> palceIndex*2) & 3) == PieceType.OPPONENTS.VALUE) {
 					movingPiecePosition = palceIndex;
 				}
 				return;
 			}
-			long newBoardId = (board.VALUE & ~(3 << palceIndex*2)) | (PieceType.OPPONENTS.VALUE << palceIndex*2);
+			long newBoardId = (board & ~(3 << palceIndex*2)) | (PieceType.OPPONENTS.VALUE << palceIndex*2);
 			newBoardId = newBoardId & ~(3 << movingPiecePosition*2);
-			Position newBoard = new Position(newBoardId);
+			long newBoard = newBoardId;
 			movingPiecePosition = -1;
-			if(rules.isPositionReachableBy(board.VALUE, newBoard.VALUE, PieceType.OPPONENTS))
+			if(rules.isPositionReachableBy(board, newBoard, PieceType.OPPONENTS))
 				board = newBoard;
 			else
 				return;
 		} else {
-			Position newBoard = putTo(palceIndex, PieceType.OPPONENTS);
-			if(newBoard != null)
-				board = newBoard;
-			else
+			long newBoard = putTo(palceIndex, PieceType.OPPONENTS);
+			if(newBoard < 0)
 				return;
+			else
+				board = newBoard;
 		}
 		repaint();
 		aiMove();
 	}
 	
-	private Position putTo(int placeIndex, PieceType pieceType) {
-		if(pieceType == PieceType.NONE) return null;
-		if(rules.howManyPiecesOf(board.VALUE, pieceType) >= 3) return null;
-		if((board.VALUE >> placeIndex * 2 & 3) != PieceType.NONE.VALUE) return null;
-		long positionValue = board.VALUE & ~(3 << placeIndex*2) | (pieceType.VALUE << placeIndex*2);
-		return new Position(positionValue, PositionState.DRAW);
+	private long putTo(int placeIndex, PieceType pieceType) {
+		if(pieceType == PieceType.NONE) return -1;
+		if(rules.howManyPiecesOf(board, pieceType) >= 3) return -1;
+		if((board >> placeIndex * 2 & 3) != PieceType.NONE.VALUE) return -1;
+		long positionValue = board & ~(3 << placeIndex*2) | (pieceType.VALUE << placeIndex*2);
+		return positionValue;
 	} 
 	
 	private void aiMove() {
-		new SwingWorker<Position, Object>() {
+		new SwingWorker<Long, Object>() {
 
 			@Override
-			protected Position doInBackground() throws Exception {
+			protected Long doInBackground() throws Exception {
 				for(int rawState = PositionState.WIN.VALUE; rawState >= PositionState.LOSS.VALUE; rawState --) {
 					List<Long> boards = data.getBoardsByState(PositionState.getStateOf(rawState));
 					if(!boards.isEmpty()) {
-						List<Long> result = getAppropriateMove(board.VALUE, boards, PieceType.MINE);
-						if(!result.isEmpty()) return new Position(result.get(random.nextInt(result.size())), PositionState.getStateOf(rawState));
+						List<Long> result = getAppropriateMove(board, boards, PieceType.MINE);
+						if(!result.isEmpty()) return result.get(random.nextInt(result.size()));
 					}
 				}
 				return null;
@@ -181,7 +181,7 @@ public class Game extends Component implements MouseListener {
 	BufferedImage background;
 	List<Point> whites;
 	List<Point> blacks;
-	Position board;
+	long board;
 	int movingPiecePosition;
 	Rules rules;
 	

@@ -85,19 +85,20 @@ public class Evaluation {
 		for(long topLine = 0; topLine <= 0x2A; topLine = increase(topLine))
 			for(long bottomLine = topLine; bottomLine <= 0x2A; bottomLine = increase(bottomLine))
 				for(long centerLne = 0; centerLne <= 0x2A; centerLne = increase(centerLne)) {
-					Position position = new Position(topLine << 12 | centerLne << 6 | bottomLine);
-					if( rules.howManyPiecesOf(position.VALUE, PieceType.MINE) == 3 && rules.howManyPiecesOf(position.VALUE, PieceType.OPPONENTS) == 3) {
-						PieceType milled = rules.whoHasAMill(position.VALUE);
-						Position symmetricPosition = new Position(bottomLine << 12 | centerLne << 6 | topLine);
-						if(position.BLOCKED == PieceType.OPPONENTS || milled == PieceType.MINE) {
-							positions.get(PositionState.WIN).add(position.VALUE);
-							positions.get(PositionState.WIN).add(symmetricPosition.VALUE);
-						} else if(position.BLOCKED == PieceType.MINE || milled == PieceType.OPPONENTS) {
-							positions.get(PositionState.LOSS).add(position.VALUE);
-							positions.get(PositionState.LOSS).add(symmetricPosition.VALUE);
+					long position = topLine << 12 | centerLne << 6 | bottomLine;
+					if( rules.howManyPiecesOf(position, PieceType.MINE) == 3 && rules.howManyPiecesOf(position, PieceType.OPPONENTS) == 3) {
+						PieceType blocked = rules.whoIsBlocked(position);
+						PieceType milled = rules.whoHasAMill(position);
+						long symmetricPosition = bottomLine << 12 | centerLne << 6 | topLine;
+						if(blocked== PieceType.OPPONENTS || milled == PieceType.MINE) {
+							positions.get(PositionState.WIN).add(position);
+							positions.get(PositionState.WIN).add(symmetricPosition);
+						} else if(blocked == PieceType.MINE || milled == PieceType.OPPONENTS) {
+							positions.get(PositionState.LOSS).add(position);
+							positions.get(PositionState.LOSS).add(symmetricPosition);
 						} else if(milled != PieceType.BOTH) {
-							positions.get(PositionState.DRAW).add(position.VALUE);
-							positions.get(PositionState.DRAW).add(symmetricPosition.VALUE);
+							positions.get(PositionState.DRAW).add(position);
+							positions.get(PositionState.DRAW).add(symmetricPosition);
 						}
 					}
 				}		
