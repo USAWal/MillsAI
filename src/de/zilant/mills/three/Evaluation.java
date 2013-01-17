@@ -61,7 +61,7 @@ public class Evaluation {
 			Data data = new Data("tmp/database");
 			try {
 				data.clean();
-				Evaluation anEvaluation = new Evaluation(new ThreeMensMorrisRules());
+				Evaluation anEvaluation = new Evaluation(new TapatanRules());
 				data.addBoard(anEvaluation.getPositions());
 			} finally {
 				data.release();
@@ -86,7 +86,7 @@ public class Evaluation {
 			for(long bottomLine = topLine; bottomLine <= 0x2A; bottomLine = increase(bottomLine))
 				for(long centerLne = 0; centerLne <= 0x2A; centerLne = increase(centerLne)) {
 					long position = topLine << 12 | centerLne << 6 | bottomLine;
-					if( rules.howManyPiecesOf(position, PieceType.MINE) == 3 && rules.howManyPiecesOf(position, PieceType.OPPONENTS) == 3) {
+					if( rules.howManyPiecesOf(position, PieceType.MINE) == 3 && rules.howManyPiecesOf(position, PieceType.OPPONENTS) == 3) {					
 						PieceType blocked = rules.whoIsBlocked(position);
 						PieceType milled = rules.whoHasAMill(position);
 						long symmetricPosition = bottomLine << 12 | centerLne << 6 | topLine;
@@ -238,9 +238,10 @@ public class Evaluation {
 				PositionState evaluatedState = minimaxPositions.get(variant);
 				if(evaluatedState == null) {
 					PieceType milled = rules.whoHasAMill(variant);
-					if(milled == PieceType.OPPONENTS)
+					PieceType blocked = rules.whoIsBlocked(variant);
+					if(blocked== PieceType.MINE || milled == PieceType.OPPONENTS)
 						state = PositionState.LOSS;
-					else if(milled == PieceType.MINE)
+					else if(blocked== PieceType.OPPONENTS || milled == PieceType.MINE)
 						state = PositionState.WIN;
 					else
 						state = startMinimaxWith(variant, !isMax);

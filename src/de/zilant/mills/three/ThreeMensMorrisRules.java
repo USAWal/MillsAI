@@ -3,7 +3,19 @@ package de.zilant.mills.three;
 public class ThreeMensMorrisRules implements Rules {
 
 	@Override
-	public PieceType whoIsBlocked(long position) { return PieceType.NONE; }
+	public PieceType whoIsBlocked(long position) {
+		long blockedPosition         = 0x16620;
+		long inversedBlockedPosition = 0x29910;
+		if      (position                                  == blockedPosition)         return PieceType.OPPONENTS;
+		else if (position                                  == inversedBlockedPosition) return PieceType.MINE;
+		else if((position = reflectHorizontally(position)) == blockedPosition)         return PieceType.OPPONENTS;
+		else if (position                                  == inversedBlockedPosition) return PieceType.MINE;
+		else if((position = reflectVertically(position))   == blockedPosition)         return PieceType.OPPONENTS;
+		else if (position                                  == inversedBlockedPosition) return PieceType.MINE;
+		else if((position = reflectHorizontally(position)) == blockedPosition)         return PieceType.OPPONENTS;
+		else if (position                                  == inversedBlockedPosition) return PieceType.MINE;
+		else                                                                           return PieceType.NONE;
+	}
 
 	@Override
 	public PieceType whoHasAMill(long position) {
@@ -19,16 +31,6 @@ public class ThreeMensMorrisRules implements Rules {
 			lineMask   <<= 5;
 			columnMask <<= 1;
 		}
-		
-		if(result != PieceType.NONE) return result;
-		
-		long diagonalMask = 0x10101;
-		if((position &  diagonalMask       ) == diagonalMask) result = PieceType.OPPONENTS;
-		if((position & (diagonalMask <<= 1)) == diagonalMask) return result == PieceType.NONE ? PieceType.MINE : PieceType.BOTH;
-		if(result != PieceType.NONE) return result;
-		     diagonalMask = 0x01110;
-		if((position &  diagonalMask       ) == diagonalMask) result = PieceType.OPPONENTS;
-		if((position & (diagonalMask <<= 1)) == diagonalMask) return result == PieceType.NONE ? PieceType.MINE : PieceType.BOTH;
 		
 		return result;
 	}
@@ -62,9 +64,7 @@ public class ThreeMensMorrisRules implements Rules {
 			differences >>= 2;
 		} while(differences != 0);
 		
-		if(	fromIndex == 4
-			|| toIndex == 4 
-			|| fromIndex/3 == toIndex/3 && Math.abs(fromIndex%3 - toIndex%3) == 1
+		if(	   fromIndex/3 == toIndex/3 && Math.abs(fromIndex%3 - toIndex%3) == 1
 			|| fromIndex%3 == toIndex%3 && Math.abs(fromIndex/3 - toIndex/3) == 1)
 			return true;
 		
