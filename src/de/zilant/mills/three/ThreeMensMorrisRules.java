@@ -1,6 +1,9 @@
 package de.zilant.mills.three;
 
 public class ThreeMensMorrisRules implements Rules {
+	
+	@Override
+	public int whatsTheCode() { return 1; }
 
 	@Override
 	public PieceType whoIsBlocked(long position) {

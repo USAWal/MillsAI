@@ -26,8 +26,8 @@ import javax.swing.SwingWorker;
 
 public class Game extends Component implements MouseListener {
 	
-	public Game(Data data) throws Exception {
-		rules = new ThreeMensMorrisRules();
+	public Game(Data data, Rules rules) throws Exception {
+		this.rules = rules;
 		movingPiecePosition = -1;
 		whites = new ArrayList<Point>();
 		blacks = new ArrayList<Point>();
@@ -40,7 +40,8 @@ public class Game extends Component implements MouseListener {
 	public static void main(String... args) {
 		JFrame frame = null;
 		try {
-			final Data data = new Data("tmp/database");
+			Rules rules = new ThreeMensMorrisRules();
+			final Data data = new Data("tmp/database", rules);
 			frame = new JFrame("Mills");
 			frame.setPreferredSize(new Dimension(300, 300));
 			frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -53,7 +54,7 @@ public class Game extends Component implements MouseListener {
 				}
 				
 			});
-			Game game = new Game(data);
+			Game game = new Game(data, rules);
 			game.addMouseListener(game);
 			frame.add(game, BorderLayout.CENTER);
 			frame.pack();
@@ -126,7 +127,7 @@ public class Game extends Component implements MouseListener {
 			@Override
 			protected Long doInBackground() throws Exception {
 				for(int rawState = PositionState.WIN.VALUE; rawState >= PositionState.LOSS.VALUE; rawState --) {
-					List<Long> boards = data.getBoardsByState(PositionState.getStateOf(rawState));
+					List<Long> boards = data.getPositionsByState(PositionState.getStateOf(rawState));
 					if(!boards.isEmpty()) {
 						List<Long> result = getAppropriateMove(board, boards, PieceType.MINE);
 						if(!result.isEmpty()) return result.get(random.nextInt(result.size()));

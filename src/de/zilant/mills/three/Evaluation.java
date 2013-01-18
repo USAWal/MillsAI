@@ -58,11 +58,16 @@ public class Evaluation {
 	
 	public static void main (String ... args) {
 		try {
-			Data data = new Data("tmp/database");
+			Rules threeMensMorrisRules = new ThreeMensMorrisRules();
+			Rules tapatanRules         = new TapatanRules();
+			Data data = new Data("tmp/database", threeMensMorrisRules);
 			try {
 				data.clean();
-				Evaluation anEvaluation = new Evaluation(new TapatanRules());
-				data.addBoard(anEvaluation.getPositions());
+				data.initialize();
+				data.addPosition(new Evaluation(threeMensMorrisRules).getPositions());
+				data.release();
+				data = new Data("tmp/database", tapatanRules);
+				data.addPosition(new Evaluation(    tapatanRules    ).getPositions());
 			} finally {
 				data.release();
 			}

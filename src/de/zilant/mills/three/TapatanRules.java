@@ -3,6 +3,9 @@ package de.zilant.mills.three;
 public class TapatanRules extends ThreeMensMorrisRules {
 	
 	@Override
+	public int whatsTheCode() { return 2; }
+	
+	@Override
 	public PieceType whoIsBlocked(long position) { return PieceType.NONE; }
 	
 	@Override
