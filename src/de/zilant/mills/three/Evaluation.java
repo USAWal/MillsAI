@@ -14,21 +14,11 @@ import java.util.logging.Logger;
 public class Evaluation {
 	
 	public Evaluation(Rules rules) {
-		this.rules = rules;
-		positions = new EnumMap<PositionState, Set<Long>>(PositionState.class);
-		positions.put(PositionState.WIN,          new TreeSet<Long>());
-		positions.put(PositionState.ONLY_TO_WIN,  new TreeSet<Long>());
-		positions.put(PositionState.TO_WIN,       new TreeSet<Long>());
-		positions.put(PositionState.DRAW,         new TreeSet<Long>());
-		positions.put(PositionState.TO_LOSS,      new TreeSet<Long>());
-		positions.put(PositionState.ONLY_TO_LOSS, new TreeSet<Long>());
-		positions.put(PositionState.LOSS,         new TreeSet<Long>());
+		this.rules     = rules;
 		
 		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Evaluation was started.");
-		
-		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Evaluate:\twins and losses.");
-		fillWinsDrawsLosses();
-		
+		this.positions = rules.getPositionsTree(3).get(0);
+				
 		Set<Long> losses3x3 = new HashSet<Long>(positions.get(PositionState.LOSS));
 		
 		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Evaluate:\tonly to losses.");
@@ -74,39 +64,6 @@ public class Evaluation {
 		} catch(Exception exception) {
 			exception.printStackTrace();
 		}
-	}
-	
-	private long increase(long line) {
-		long mask = 2;
-		while((line & mask) != 0) {
-			line -= mask;
-			mask <<= 2;
-		}
-		line += mask >> 1;
-		return line;
-	}
-	
-	private void fillWinsDrawsLosses() {
-		for(long topLine = 0; topLine <= 0x2A; topLine = increase(topLine))
-			for(long bottomLine = topLine; bottomLine <= 0x2A; bottomLine = increase(bottomLine))
-				for(long centerLne = 0; centerLne <= 0x2A; centerLne = increase(centerLne)) {
-					long position = topLine << 12 | centerLne << 6 | bottomLine;
-					if( rules.howManyPiecesOf(position, PieceType.MINE) == 3 && rules.howManyPiecesOf(position, PieceType.OPPONENTS) == 3) {					
-						PieceType blocked = rules.whoIsBlocked(position);
-						PieceType milled = rules.whoHasAMill(position);
-						long symmetricPosition = bottomLine << 12 | centerLne << 6 | topLine;
-						if(blocked== PieceType.OPPONENTS || milled == PieceType.MINE) {
-							positions.get(PositionState.WIN).add(position);
-							positions.get(PositionState.WIN).add(symmetricPosition);
-						} else if(blocked == PieceType.MINE || milled == PieceType.OPPONENTS) {
-							positions.get(PositionState.LOSS).add(position);
-							positions.get(PositionState.LOSS).add(symmetricPosition);
-						} else if(milled != PieceType.BOTH) {
-							positions.get(PositionState.DRAW).add(position);
-							positions.get(PositionState.DRAW).add(symmetricPosition);
-						}
-					}
-				}		
 	}
 	
 	private void fillOnlyToLosses() {
@@ -293,6 +250,6 @@ public class Evaluation {
 	}
 	
 	private Map<PositionState, Set<Long>> positions;
-	private Map<Long, PositionState> minimaxPositions;
-	private Rules rules;
+	private Map<Long, PositionState>      minimaxPositions;
+	private Rules                         rules;
 }
