@@ -112,8 +112,28 @@ public class FiveMensMorrisRules implements Rules {
 	}
 
 	@Override
-	public boolean isPositionReachableBy(long from, long to, PieceType pieceType) {
-		// TODO Auto-generated method stub
+	public boolean isPositionReachableBy(long from, long to, PieceType typeOfMovingPiece) {
+		long differences = from ^ to;
+		int fromIndex    = -1;
+		int toIndex      = -1;
+		int placeIndex   =  0;
+		do {
+			int positionPieceType = (int) differences & 3;
+			if(positionPieceType == typeOfMovingPiece.VALUE) {
+				if(fromIndex < 0) fromIndex = placeIndex;
+				else if(toIndex < 0) toIndex = placeIndex;
+				else return false;
+			} else if(positionPieceType != 0)
+				return false;
+			placeIndex++;
+			differences >>= 2;
+		} while(differences != 0);
+		
+		if(toIndex < 0) return false;
+		
+		for(int index = 1; index < connections[fromIndex].length; index++)
+			if(connections[fromIndex][index] == toIndex) return true;
+		
 		return false;
 	}
 
