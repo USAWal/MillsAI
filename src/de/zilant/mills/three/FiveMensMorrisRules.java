@@ -83,8 +83,21 @@ public class FiveMensMorrisRules implements Rules {
 
 	@Override
 	public PieceType whoHasAMill(long position) {
-		// TODO Auto-generated method stub
-		return null;
+		PieceType result     = PieceType.NONE;
+		
+		for(long lineMask = 0x0015; lineMask <= 0x1500000; lineMask <<= 8)
+			for(int index = 0; index < 2; index++) {
+				if((position &  lineMask         ) == lineMask)   if(result == PieceType.NONE) result = PieceType.OPPONENTS; else return PieceType.BOTH;
+				if((position & (lineMask   <<= 1)) == lineMask)   if(result == PieceType.NONE) result = PieceType.MINE;      else return PieceType.BOTH;
+				lineMask   <<= 5;
+			}
+		
+		for(long columnMask : verticalMillsMasks) {
+			if((position &  columnMask         ) == columnMask)   if(result == PieceType.NONE) result = PieceType.OPPONENTS; else return PieceType.BOTH;
+			if((position & (columnMask   <<= 1)) == columnMask)   if(result == PieceType.NONE) result = PieceType.MINE;      else return PieceType.BOTH;			
+		}
+		
+		return result;
 	}
 
 	@Override
@@ -163,6 +176,13 @@ public class FiveMensMorrisRules implements Rules {
 			{0,  6, 14    },
 			{0, 11, 13, 15},
 			{0,  9, 14    },
+	};
+	
+	private long[] verticalMillsMasks = new long[] {
+			0x04001001,
+			0x40040010,
+			0x00104040,
+			0x01010400
 	};
 
 }
