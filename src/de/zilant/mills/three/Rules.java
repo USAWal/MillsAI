@@ -7,7 +7,8 @@ import de.zilant.mills.three.PieceType;
 
 
 public interface Rules {
-	List <Map<PositionState, Set<Long>>> getPositionsTree      (int  maxNumberOfPieces                         );
+	int                                  whatsTheMaxOfPieces   (                                               );
+	List <Map<PositionState, Set<Long>>> getPositionsTree      (                                               );
 	int                                  whatsTheCode          (                                               );
 	PieceType                            whoIsBlocked          (long position                                  );
 	PieceType                            whoHasAMill           (long position                                  );

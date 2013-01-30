@@ -10,10 +10,14 @@ import java.util.TreeSet;
 public class ThreeMensMorrisRules implements Rules {
 	
 	@Override
-	public List<Map<PositionState, Set<Long>>> getPositionsTree(int maxNumberOfPieces) {
-		List<Map<PositionState, Set<Long>>> result = new ArrayList<Map<PositionState,Set<Long>>>();
-		for(int index = 0; index < (maxNumberOfPieces-2)*(maxNumberOfPieces-2); index++)
-			result.add(createPositions());
+	public int whatsTheMaxOfPieces() { return 3; }
+	
+	@Override
+	public List<Map<PositionState, Set<Long>>> getPositionsTree() {
+		if(positionsTree != null) return positionsTree;
+		positionsTree = new ArrayList<Map<PositionState,Set<Long>>>();
+		for(int index = 0; index < (whatsTheMaxOfPieces()-2)*(whatsTheMaxOfPieces()-2); index++)
+			positionsTree.add(createPositions());
 		
 		for(long topLine = 0; topLine <= 0x2A; topLine = increaseLine(topLine))
 			for(long bottomLine = topLine; bottomLine <= 0x2A; bottomLine = increaseLine(bottomLine))
@@ -22,11 +26,11 @@ public class ThreeMensMorrisRules implements Rules {
 					int myPiecesNumber = howManyPiecesOf(position, PieceType.MINE);
 					int opponentsPiecesNumber = howManyPiecesOf(position, PieceType.OPPONENTS);
 					if(
-							myPiecesNumber        >= 3 && myPiecesNumber        <= maxNumberOfPieces &&
-							opponentsPiecesNumber >= 3 && opponentsPiecesNumber <= maxNumberOfPieces) {					
+							myPiecesNumber        >= 3 && myPiecesNumber        <= whatsTheMaxOfPieces() &&
+							opponentsPiecesNumber >= 3 && opponentsPiecesNumber <= whatsTheMaxOfPieces()) {					
 						PieceType blocked = whoIsBlocked(position);
 						PieceType milled = whoHasAMill(position);
-						Map<PositionState, Set<Long>> positions = result.get((maxNumberOfPieces-myPiecesNumber)*(maxNumberOfPieces-2)+(maxNumberOfPieces-opponentsPiecesNumber));
+						Map<PositionState, Set<Long>> positions = positionsTree.get((whatsTheMaxOfPieces()-myPiecesNumber)*(whatsTheMaxOfPieces()-2)+(whatsTheMaxOfPieces()-opponentsPiecesNumber));
 						long symmetricPosition = bottomLine << 12 | centerLne << 6 | topLine;
 						if(blocked== PieceType.OPPONENTS    || (milled == PieceType.MINE      && opponentsPiecesNumber == 3)) {
 							positions.get(PositionState.WIN).add(position);
@@ -41,7 +45,7 @@ public class ThreeMensMorrisRules implements Rules {
 					}
 				}	
 		
-		return result;
+		return positionsTree;
 	}
 	
 	@Override
@@ -148,4 +152,6 @@ public class ThreeMensMorrisRules implements Rules {
 		return line;
 	}
 
+	private List<Map<PositionState, Set<Long>>> positionsTree = null;
+	
 }

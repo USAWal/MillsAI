@@ -17,10 +17,25 @@ public class Evaluation {
 		this.rules     = rules;
 		
 		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Evaluation was started.");
-		this.positions = rules.getPositionsTree(3).get(0);
-				
-		Set<Long> losses3x3 = new HashSet<Long>(positions.get(PositionState.LOSS));
+		for(int index = rules.getPositionsTree().size() - 1; index >= 0; index--) {
+			this.positions = rules.getPositionsTree().get(index);
+			evaluate();
+		}
+		if(!(rules instanceof FiveMensMorrisRules)) {
+		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Start minimax evaluation.");
+		minimaxPositions = new TreeMap<Long, PositionState>();
+	    startMinimaxWith(0, true);
+	    startMinimaxWith(0, false);}
+	    for(int index = rules.getPositionsTree().size() - 1; index >= rules.getPositionsTree().size() - rules.whatsTheMaxOfPieces() + 2; index--)
+	    	positions.get(PositionState.LOSS).clear();
+	    if(!(rules instanceof FiveMensMorrisRules))
+	    for(Long position : minimaxPositions.keySet())
+			positions.get(minimaxPositions.get(position)).add(position);	
 		
+		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Evaluation is just finished.");
+	}
+	
+	private void evaluate() {
 		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Evaluate:\tonly to losses.");
 		fillOnlyToLosses();
 		
@@ -32,16 +47,6 @@ public class Evaluation {
 
 		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Evaluate:\talso to wins.");
 		fillToWins();
-
-		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Start minimax evaluation.");
-		minimaxPositions = new TreeMap<Long, PositionState>();
-	    startMinimaxWith(0, true);
-	    startMinimaxWith(0, false);
-		for(Long position : minimaxPositions.keySet())
-			positions.get(minimaxPositions.get(position)).add(position);
-		positions.get(PositionState.LOSS).removeAll(losses3x3);
-		
-		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Evaluation is just finished.");
 	}
 	
 	public Map<PositionState, Set<Long>> getPositions() { return positions; }
@@ -50,14 +55,18 @@ public class Evaluation {
 		try {
 			Rules threeMensMorrisRules = new ThreeMensMorrisRules();
 			Rules tapatanRules         = new TapatanRules();
+			Rules fiveMensMorrisRules  = new FiveMensMorrisRules();
 			Data data = new Data("tmp/database", threeMensMorrisRules);
 			try {
 				data.clean();
 				data.initialize();
 				data.addPosition(new Evaluation(threeMensMorrisRules).getPositions());
 				data.release();
-				data = new Data("tmp/database", tapatanRules);
-				data.addPosition(new Evaluation(    tapatanRules    ).getPositions());
+				data  = new Data("tmp/database",        tapatanRules)                ;
+				data.addPosition(new Evaluation(        tapatanRules).getPositions());
+				data.release();
+				data  = new Data("tmp/database", fiveMensMorrisRules)                ;
+				data.addPosition(new Evaluation( fiveMensMorrisRules).getPositions());
 			} finally {
 				data.release();
 			}
@@ -67,10 +76,12 @@ public class Evaluation {
 	}
 	
 	private void fillOnlyToLosses() {
+		System.out.println("fillOnlyToLosses start");
 		Collection<Long> newLosses = getReachablePositions(PieceType.OPPONENTS, positions.get(PositionState.DRAW), positions.get(PositionState.LOSS));
+		System.out.println("newLosses size is [" + newLosses.size() + "]");
 		positions.get(PositionState.DRAW).removeAll(newLosses);
 		positions.get(PositionState.ONLY_TO_LOSS).addAll(newLosses);
-				
+		
 		while(!newLosses.isEmpty()) {
 			Set<Long> onlyToLosses = new HashSet<Long>();
 			for(Long position : getReachablePositions(PieceType.MINE, positions.get(PositionState.DRAW), newLosses))
@@ -227,6 +238,8 @@ public class Evaluation {
 	}
 	
 	private Collection<Long> getReachablePositions(PieceType pieceType, Collection<Long> from, Collection<Long> to) {
+		System.out.println("from size is [" + from.size() + "]");
+		System.out.println("to size is [" + to.size() + "]");
 		Set<Long> result = new HashSet<Long>();
 		for(Long position : from)
 			if(isReachableBy(position, to, pieceType))

@@ -8,25 +8,29 @@ import java.util.Set;
 import java.util.TreeSet;
 
 public class FiveMensMorrisRules implements Rules {
+	
+	@Override
+	public int whatsTheMaxOfPieces() { return 5; }
 
 	@Override
-	public List<Map<PositionState, Set<Long>>> getPositionsTree(int maxNumberOfPieces) {
-		List<Map<PositionState, Set<Long>>> result = new ArrayList<Map<PositionState,Set<Long>>>();
-		for(int index = 0; index < (maxNumberOfPieces-2)*(maxNumberOfPieces-2); index++)
-			result.add(createPositions());
+	public List<Map<PositionState, Set<Long>>> getPositionsTree() {
+		if(positionsTree != null) return positionsTree;
+		positionsTree = new ArrayList<Map<PositionState,Set<Long>>>();
+		for(int index = 0; index < (whatsTheMaxOfPieces()-2)*(whatsTheMaxOfPieces()-2); index++)
+			positionsTree.add(createPositions());
 		
-		for(long topLine = 0; topLine <= 0xAAA; topLine = increaseLine(topLine))
+		for(long topLine = 0; topLine <= 0xAAA; topLine = increaseLine(topLine)) {
 			for(long bottomLine = topLine; bottomLine <= 0xAAA; bottomLine = increaseLine(bottomLine))
-				for(long centerLne = 0; centerLne <= 0xAAA; centerLne = increaseLine(centerLne)) {
+				for(long centerLne = 0; centerLne <= 0xAA; centerLne = increaseLine(centerLne)) {
 					long position = topLine << 20 | centerLne << 12 | bottomLine;
 					int myPiecesNumber = howManyPiecesOf(position, PieceType.MINE);
 					int opponentsPiecesNumber = howManyPiecesOf(position, PieceType.OPPONENTS);
 					if(
-							myPiecesNumber        >= 3 && myPiecesNumber        <= maxNumberOfPieces &&
-							opponentsPiecesNumber >= 3 && opponentsPiecesNumber <= maxNumberOfPieces) {					
+							myPiecesNumber        >= 3 && myPiecesNumber        <= whatsTheMaxOfPieces() &&
+							opponentsPiecesNumber >= 3 && opponentsPiecesNumber <= whatsTheMaxOfPieces()) {					
 						PieceType blocked = whoIsBlocked(position);
 						PieceType milled = whoHasAMill(position);
-						Map<PositionState, Set<Long>> positions = result.get((maxNumberOfPieces-myPiecesNumber)*(maxNumberOfPieces-2)+(maxNumberOfPieces-opponentsPiecesNumber));
+						Map<PositionState, Set<Long>> positions = positionsTree.get((whatsTheMaxOfPieces()-myPiecesNumber)*(whatsTheMaxOfPieces()-2)+(whatsTheMaxOfPieces()-opponentsPiecesNumber));
 						long symmetricPosition = bottomLine << 20 | centerLne << 12 | topLine;
 						if(blocked== PieceType.OPPONENTS    || (milled == PieceType.MINE      && opponentsPiecesNumber == 3)) {
 							positions.get(PositionState.WIN).add(position);
@@ -39,9 +43,10 @@ public class FiveMensMorrisRules implements Rules {
 							positions.get(PositionState.DRAW).add(symmetricPosition);
 						}
 					}
-				}	
+				}
+		}
 		
-		return result;
+		return positionsTree;
 	}
 
 	@Override
@@ -175,6 +180,8 @@ public class FiveMensMorrisRules implements Rules {
 		line += mask >> 1;
 		return line;
 	}
+	
+	private List<Map<PositionState, Set<Long>>> positionsTree = null;
 	
 	private int[][] connections = new int[][] {
 			{0,  1,  6    },
