@@ -2,6 +2,7 @@ package de.zilant.mills.three;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
@@ -66,7 +67,9 @@ public class Evaluation {
 				data.addPosition(new Evaluation(        tapatanRules).getPositions());
 				data.release();
 				data  = new Data("tmp/database", fiveMensMorrisRules)                ;
-				data.addPosition(new Evaluation( fiveMensMorrisRules).getPositions());
+				new Evaluation(fiveMensMorrisRules)                                  ;
+				for(Map<PositionState, Set<Long>> positions : fiveMensMorrisRules.getPositionsTree())
+					data.addPosition(positions);
 			} finally {
 				data.release();
 			}
@@ -95,6 +98,7 @@ public class Evaluation {
 	
 	private void fillToLosses() {
 		Collection<Long> newLosses = positions.get(PositionState.ONLY_TO_LOSS);
+		Collection<Long> newLosses2 = null;
 		boolean prolonge = false;
 		do {
 			Set<Long> onlyToLosses = new HashSet<Long>();
@@ -105,18 +109,16 @@ public class Evaluation {
 					onlyToLosses.add(position);
 			newLosses = getReachablePositions(PieceType.OPPONENTS, positions.get(PositionState.DRAW), onlyToLosses);
 			positions.get(PositionState.DRAW).removeAll(newLosses);
-			positions.get(PositionState.TO_LOSS).addAll(newLosses);
 			prolonge = !newLosses.isEmpty();
 			
-			losses = new HashSet<Long>(positions.get(PositionState.ONLY_TO_LOSS));
-			losses.addAll(positions.get(PositionState.TO_LOSS));
 			for(Long position : getReachablePositions(PieceType.MINE, positions.get(PositionState.DRAW), newLosses))
 				if(!isReachableBy(position, positions.get(PositionState.WIN), PieceType.MINE) && !isReachableBy(position, positions.get(PositionState.DRAW), PieceType.MINE))
 					onlyToLosses.add(position);
-			newLosses = getReachablePositions(PieceType.OPPONENTS, positions.get(PositionState.DRAW), onlyToLosses);
-			positions.get(PositionState.DRAW).removeAll(newLosses);
+			newLosses2 = getReachablePositions(PieceType.OPPONENTS, positions.get(PositionState.DRAW), onlyToLosses);
+			positions.get(PositionState.DRAW).removeAll(newLosses2);
 			positions.get(PositionState.TO_LOSS).addAll(newLosses);
-		} while(!newLosses.isEmpty() || prolonge);		
+			positions.get(PositionState.TO_LOSS).addAll(newLosses2);
+		} while(!newLosses2.isEmpty() || prolonge);		
 	}
 	
 	private void fillOnlyToWins() {
@@ -241,9 +243,18 @@ public class Evaluation {
 		System.out.println("from size is [" + from.size() + "]");
 		System.out.println("to size is [" + to.size() + "]");
 		Set<Long> result = new HashSet<Long>();
-		for(Long position : from)
-			if(isReachableBy(position, to, pieceType))
-				result.add(position);
+
+		if(from.size() <= to.size()) {
+			for(Long position : from)
+				if(isReachableBy(position, to, pieceType))
+					result.add(position);			
+		} else {
+			for(Long position : to) {
+				Collection<Long> reachables = rules.getReachablePositionsBy(position, pieceType);
+				reachables.retainAll(from);
+				result.addAll(reachables);
+			}
+		}
 
 		return result;
 	}
@@ -256,8 +267,8 @@ public class Evaluation {
 	}
 	
 	private boolean isReachableBy(Long from, Collection<Long> to, PieceType pieceType) {
-		for(Long position : to)
-			if(rules.isPositionReachableBy(from, position, pieceType))
+		for(Long reachable : rules.getReachablePositionsBy(from, pieceType))
+			if(to.contains(reachable))
 				return true;
 		return false;
 	}

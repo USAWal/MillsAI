@@ -1,6 +1,7 @@
 package de.zilant.mills.three;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -8,6 +9,22 @@ import java.util.Set;
 import java.util.TreeSet;
 
 public class ThreeMensMorrisRules implements Rules {
+	
+	public ThreeMensMorrisRules() {
+		connections = new int[][] {
+				{0, 1, 3      },
+				{0, 0, 2, 4   },
+				{0, 1, 5      },
+				
+				{0, 0, 4, 6   },
+				{0, 1, 3, 5, 7},
+				{0, 2, 4, 8   },
+				
+				{0, 3, 7      },
+				{0, 4, 6, 8   },
+				{0, 5, 7      },
+		};
+	}
 	
 	@Override
 	public int whatsTheMaxOfPieces() { return 3; }
@@ -119,6 +136,23 @@ public class ThreeMensMorrisRules implements Rules {
 		
 		return false;
 	}
+	
+	@Override
+	public Collection<Long> getReachablePositionsBy(long position, PieceType pieceType) {
+		Collection<Long> result = new TreeSet<Long>();
+		fillConnections(position);
+		for(int intersectionIndex = 0; intersectionIndex < connections.length; intersectionIndex++) {
+			if(connections[intersectionIndex][0] == pieceType.VALUE) {
+				long positionWithoutPiece = ~(3 << intersectionIndex*2) & position;
+				for(int neighbourIndex = 1; neighbourIndex < connections[intersectionIndex].length; neighbourIndex++) {
+					int connectedIntersection = connections[intersectionIndex][neighbourIndex];
+					if(connections[connectedIntersection][0] == PieceType.NONE.VALUE)
+						result.add(positionWithoutPiece | pieceType.VALUE << 2*connectedIntersection);
+				}
+			}
+		}
+		return result;
+	}
 
 	@Override
 	public long reflectHorizontally(long position) {
@@ -151,7 +185,16 @@ public class ThreeMensMorrisRules implements Rules {
 		line += mask >> 1;
 		return line;
 	}
+	
+	private void fillConnections(long position) {
+		for(int[] intersection : connections) {
+			intersection[0] = (int) position & 3;
+			position >>= 2;
+		}
+	}
 
 	private List<Map<PositionState, Set<Long>>> positionsTree = null;
+	
+	protected int[][] connections;
 	
 }

@@ -1,6 +1,7 @@
 package de.zilant.mills.three;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -54,10 +55,7 @@ public class FiveMensMorrisRules implements Rules {
 
 	@Override
 	public PieceType whoIsBlocked(long position) {
-		for(int[] intersection : connections) {
-			intersection[0] = (int) position & 3;
-			position >>= 2;
-		}
+		fillConnections(position);
 		
 		PieceType result = PieceType.BOTH;
 		for(int[] intersection : connections) {
@@ -118,6 +116,7 @@ public class FiveMensMorrisRules implements Rules {
 
 	@Override
 	public boolean isPositionReachableBy(long from, long to, PieceType typeOfMovingPiece) {
+		if(from % 2 != to %2) return false;
 		long differences = from ^ to;
 		int fromIndex    = -1;
 		int toIndex      = -1;
@@ -141,10 +140,28 @@ public class FiveMensMorrisRules implements Rules {
 		
 		return false;
 	}
+	
+	@Override
+	public Collection<Long> getReachablePositionsBy(long position, PieceType pieceType) {
+		Collection<Long> result = new TreeSet<Long>();
+		fillConnections(position);
+		for(int intersectionIndex = 0; intersectionIndex < connections.length; intersectionIndex++) {
+			if(connections[intersectionIndex][0] == pieceType.VALUE) {
+				long positionWithoutPiece = ~(3 << intersectionIndex*2) & position;
+				for(int neighbourIndex = 1; neighbourIndex < connections[intersectionIndex].length; neighbourIndex++) {
+					int connectedIntersection = connections[intersectionIndex][neighbourIndex];
+					if(connections[connectedIntersection][0] == PieceType.NONE.VALUE)
+						result.add(positionWithoutPiece | pieceType.VALUE << 2*connectedIntersection);
+				}
+			}
+		}
+
+		return result;
+	}
 
 	@Override
 	public long reflectHorizontally(long position) {
-		return (position & 0xFFF00000) >> 20 | position & 0xFF000  | (position & 0xFFF)   << 20;
+		return (position & 0xFFF00000) >> 20 | position & 0xFF000  | (position & 0xFFF) << 20;
 	}
 
 	@Override
@@ -181,6 +198,13 @@ public class FiveMensMorrisRules implements Rules {
 		return line;
 	}
 	
+	private void fillConnections(long position) {
+		for(int[] intersection : connections) {
+			intersection[0] = (int) position & 3;
+			position >>= 2;
+		}
+	}
+	
 	private List<Map<PositionState, Set<Long>>> positionsTree = null;
 	
 	private int[][] connections = new int[][] {
@@ -211,5 +235,5 @@ public class FiveMensMorrisRules implements Rules {
 			0x00104040,
 			0x01010400
 	};
-
+	
 }

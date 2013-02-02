@@ -1,6 +1,24 @@
 package de.zilant.mills.three;
 
+import java.util.Collection;
+
 public class TapatanRules extends ThreeMensMorrisRules {
+	
+	public TapatanRules() {
+		connections = new int[][] {
+				{0, 1, 3, 4               },
+				{0, 0, 2, 4               },
+				{0, 1, 4, 5               },
+				
+				{0, 0, 4, 6               },
+				{0, 0, 1, 2, 3, 5, 6, 7, 8},
+				{0, 2, 4, 8               },
+				
+				{0, 3, 4, 7               },
+				{0, 4, 6, 8               },
+				{0, 4, 5, 7               },
+		};
+	}
 	
 	@Override
 	public int whatsTheCode() { return 2; }
@@ -50,5 +68,8 @@ public class TapatanRules extends ThreeMensMorrisRules {
 		
 		return false;
 	}
+	
+	@Override
+	public Collection<Long> getReachablePositionsBy(long position, PieceType pieceType) { return super.getReachablePositionsBy(position, pieceType); }
 	
 }
