@@ -66,10 +66,10 @@ public class Evaluation {
 				data  = new Data("tmp/database",        tapatanRules)                ;
 				data.addPosition(new Evaluation(        tapatanRules).getPositions());
 				data.release();
-				data  = new Data("tmp/database", fiveMensMorrisRules)                ;
-				new Evaluation(fiveMensMorrisRules)                                  ;
-				for(Map<PositionState, Set<Long>> positions : fiveMensMorrisRules.getPositionsTree())
-					data.addPosition(positions);
+				//data  = new Data("tmp/database", fiveMensMorrisRules)                ;
+				//new Evaluation(fiveMensMorrisRules)                                  ;
+				//for(Map<PositionState, Set<Long>> positions : fiveMensMorrisRules.getPositionsTree())
+				//	data.addPosition(positions);
 			} finally {
 				data.release();
 			}
@@ -102,7 +102,7 @@ public class Evaluation {
 		boolean prolonge = false;
 		do {
 			Set<Long> onlyToLosses = new HashSet<Long>();
-			Set<Long> losses = new HashSet<Long>(positions.get(PositionState.ONLY_TO_LOSS));
+			Set<Long> losses = new TreeSet<Long>(positions.get(PositionState.ONLY_TO_LOSS));
 			losses.addAll(positions.get(PositionState.TO_LOSS));
 			for(Long position : getReachablePositions(PieceType.MINE, losses, losses))
 				if(!isReachableBy(position, positions.get(PositionState.WIN), PieceType.MINE) && !isReachableBy(position, positions.get(PositionState.DRAW), PieceType.MINE))
@@ -260,7 +260,7 @@ public class Evaluation {
 	}
 	
 	private Collection<Long> getReachablePositions(PieceType pieceType, Collection<Long> from, Collection<Long> ... toes) {
-		Collection<Long> result = new HashSet<Long>();
+		Collection<Long> result = new TreeSet<Long>();
 		for(Collection<Long> to : toes)
 			result.addAll(getReachablePositions(pieceType, from, to));
 		return result;
@@ -276,4 +276,5 @@ public class Evaluation {
 	private Map<PositionState, Set<Long>> positions;
 	private Map<Long, PositionState>      minimaxPositions;
 	private Rules                         rules;
+	
 }

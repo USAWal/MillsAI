@@ -6,6 +6,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
 
 public class FiveMensMorrisRules implements Rules {
@@ -143,7 +144,7 @@ public class FiveMensMorrisRules implements Rules {
 	
 	@Override
 	public Collection<Long> getReachablePositionsBy(long position, PieceType pieceType) {
-		Collection<Long> result = new TreeSet<Long>();
+		Set<Long> result =  new TreeSet<Long>();
 		fillConnections(position);
 		for(int intersectionIndex = 0; intersectionIndex < connections.length; intersectionIndex++) {
 			if(connections[intersectionIndex][0] == pieceType.VALUE) {
