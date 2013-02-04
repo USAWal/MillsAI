@@ -93,7 +93,7 @@ public class Evaluation {
 			newLosses = getReachablePositions(PieceType.OPPONENTS, positions.get(PositionState.DRAW), onlyToLosses);
 			positions.get(PositionState.DRAW).removeAll(newLosses);
 			positions.get(PositionState.ONLY_TO_LOSS).addAll(newLosses);
-		}		
+		}
 	}
 	
 	private void fillToLosses() {

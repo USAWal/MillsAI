@@ -21,32 +21,38 @@ public class FiveMensMorrisRules implements Rules {
 		for(int index = 0; index < (whatsTheMaxOfPieces()-2)*(whatsTheMaxOfPieces()-2); index++)
 			positionsTree.add(createPositions());
 		
-		for(long topLine = 0; topLine <= 0xAAA; topLine = increaseLine(topLine)) {
-			for(long bottomLine = topLine; bottomLine <= 0xAAA; bottomLine = increaseLine(bottomLine))
+		for(long mostTopLine = 0; mostTopLine <= 0x2A; mostTopLine = increaseLine(mostTopLine))
+		for(long topLine = 0; topLine <= 0x2A; topLine = increaseLine(topLine))
+			for(long bottomLine = mostTopLine; bottomLine <= 0x2A; bottomLine = increaseLine(bottomLine))
+			for(long mostBottomLine = 0; mostBottomLine <= 0x2A; mostBottomLine = increaseLine(mostBottomLine))
 				for(long centerLne = 0; centerLne <= 0xAA; centerLne = increaseLine(centerLne)) {
-					long position = topLine << 20 | centerLne << 12 | bottomLine;
+					long position = mostTopLine << 26 | topLine << 20 | centerLne << 12 | bottomLine << 6 | mostBottomLine;
 					int myPiecesNumber = howManyPiecesOf(position, PieceType.MINE);
 					int opponentsPiecesNumber = howManyPiecesOf(position, PieceType.OPPONENTS);
 					if(
 							myPiecesNumber        >= 3 && myPiecesNumber        <= whatsTheMaxOfPieces() &&
-							opponentsPiecesNumber >= 3 && opponentsPiecesNumber <= whatsTheMaxOfPieces()) {					
+							opponentsPiecesNumber >= 3 && opponentsPiecesNumber <= whatsTheMaxOfPieces()) {	
 						PieceType blocked = whoIsBlocked(position);
 						PieceType milled = whoHasAMill(position);
 						Map<PositionState, Set<Long>> positions = positionsTree.get((whatsTheMaxOfPieces()-myPiecesNumber)*(whatsTheMaxOfPieces()-2)+(whatsTheMaxOfPieces()-opponentsPiecesNumber));
-						long symmetricPosition = bottomLine << 20 | centerLne << 12 | topLine;
-						if(blocked== PieceType.OPPONENTS    || (milled == PieceType.MINE      && opponentsPiecesNumber == 3)) {
-							positions.get(PositionState.WIN).add(position);
-							positions.get(PositionState.WIN).add(symmetricPosition);
-						} else if(blocked == PieceType.MINE || (milled == PieceType.OPPONENTS && myPiecesNumber        == 3)) {
+						long symmetricPosition = mostBottomLine << 26 | bottomLine << 20 | centerLne << 12 | topLine << 6 | mostTopLine;
+						if(milled == PieceType.BOTH && myPiecesNumber == 3 && opponentsPiecesNumber == 3) {
+							//positions.get(PositionState.WIN).add(position);
+							//positions.get(PositionState.WIN).add(symmetricPosition);
 							positions.get(PositionState.LOSS).add(position);
 							positions.get(PositionState.LOSS).add(symmetricPosition);
-						} else if(milled != PieceType.BOTH) {
+						} else if(blocked== PieceType.OPPONENTS    || (milled == PieceType.MINE      && opponentsPiecesNumber == 3)) {
+							positions.get(PositionState.WIN).add(position);
+							positions.get(PositionState.WIN).add(symmetricPosition);
+						} else if(blocked == PieceType.MINE        || (milled == PieceType.OPPONENTS && myPiecesNumber        == 3)) {
+							positions.get(PositionState.LOSS).add(position);
+							positions.get(PositionState.LOSS).add(symmetricPosition);
+						} else {
 							positions.get(PositionState.DRAW).add(position);
 							positions.get(PositionState.DRAW).add(symmetricPosition);
 						}
 					}
 				}
-		}
 		
 		return positionsTree;
 	}
@@ -62,15 +68,15 @@ public class FiveMensMorrisRules implements Rules {
 		for(int[] intersection : connections) {
 			for(int index = 1; index < intersection.length; index++) {
 				if(result == PieceType.NONE) return result;
-				if(intersection[0] == PieceType.NONE.VALUE) {
-					if(intersection[index] == PieceType.MINE.VALUE) {
+				if       (intersection[0]                     == PieceType.NONE.VALUE) {
+					if(       connections[intersection[index]][0] ==      PieceType.MINE.VALUE) {
 						if     (result == PieceType.BOTH) result = PieceType.OPPONENTS;
 						else if(result == PieceType.MINE) result = PieceType.NONE     ;
-					} else if(intersection[index] == PieceType.OPPONENTS.VALUE) {
+					} else if(connections[intersection[index]][0] == PieceType.OPPONENTS.VALUE) {
 						if     (result == PieceType.BOTH     ) result = PieceType.MINE;
 						else if(result == PieceType.OPPONENTS) result = PieceType.NONE;
 					}
-				} else if(intersection[index] == PieceType.NONE.VALUE) {
+				} else if(connections[intersection[index]][0] == PieceType.NONE.VALUE) {
 					if(intersection[0] == PieceType.MINE.VALUE) {
 						if     (result == PieceType.BOTH) result = PieceType.OPPONENTS;
 						else if(result == PieceType.MINE) result = PieceType.NONE;
@@ -91,14 +97,14 @@ public class FiveMensMorrisRules implements Rules {
 		
 		for(long lineMask = 0x0015; lineMask <= 0x1500000; lineMask <<= 8)
 			for(int index = 0; index < 2; index++) {
-				if((position &  lineMask         ) == lineMask)   if(result == PieceType.NONE) result = PieceType.OPPONENTS; else return PieceType.BOTH;
-				if((position & (lineMask   <<= 1)) == lineMask)   if(result == PieceType.NONE) result = PieceType.MINE;      else return PieceType.BOTH;
+				if((position &  lineMask         ) == lineMask) { if(result == PieceType.NONE) result = PieceType.OPPONENTS; else return PieceType.BOTH; }
+				if((position & (lineMask   <<= 1)) == lineMask) { if(result == PieceType.NONE) result = PieceType.MINE;      else return PieceType.BOTH; }
 				lineMask   <<= 5;
 			}
 		
 		for(long columnMask : verticalMillsMasks) {
-			if((position &  columnMask         ) == columnMask)   if(result == PieceType.NONE) result = PieceType.OPPONENTS; else return PieceType.BOTH;
-			if((position & (columnMask   <<= 1)) == columnMask)   if(result == PieceType.NONE) result = PieceType.MINE;      else return PieceType.BOTH;			
+			if((position &  columnMask         ) == columnMask) { if(result == PieceType.NONE) result = PieceType.OPPONENTS; else return PieceType.BOTH; }
+			if((position & (columnMask   <<= 1)) == columnMask) { if(result == PieceType.NONE) result = PieceType.MINE;      else return PieceType.BOTH; }			
 		}
 		
 		return result;
@@ -161,7 +167,7 @@ public class FiveMensMorrisRules implements Rules {
 
 	@Override
 	public long reflectHorizontally(long position) {
-		return (position & 0xFFF00000) >> 20 | position & 0xFF000  | (position & 0xFFF) << 20;
+		return (position & 0xFC000000) >> 26 | (position & 0x3F00000) >> 14 | position & 0xFF000  | (position & 0xFC0) << 14  | (position & 0x3F) << 26;
 	}
 
 	@Override
@@ -211,19 +217,20 @@ public class FiveMensMorrisRules implements Rules {
 			{0,  1,  6    },
 			{0,  0,  2,  4},
 			{0,  1,  9    },
-			{0,  4,  7    },
 			
+			{0,  4,  7    },
 			{0,  1,  3,  5},
 			{0,  4,  8    },
+			
 			{0,  0,  7, 13},
 			{0,  3,  6, 10},
-			
 			{0,  5,  9, 12},
 			{0,  2,  8, 15},
+			
 			{0,  7, 11    },
 			{0, 10, 12, 14},
-			
 			{0,  8, 11    },
+			
 			{0,  6, 14    },
 			{0, 11, 13, 15},
 			{0,  9, 14    },
