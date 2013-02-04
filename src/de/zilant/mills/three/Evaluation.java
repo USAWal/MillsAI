@@ -18,7 +18,7 @@ public class Evaluation {
 		this.rules     = rules;
 		
 		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Evaluation was started.");
-		for(int index = rules.getPositionsTree().size() - 1; index >= 0; index--) {
+		for(int index = rules.getPositionsTree().size() - 1; index >= rules.getPositionsTree().size() - 1; index--) {
 			this.positions = rules.getPositionsTree().get(index);
 			evaluate();
 		}
@@ -66,10 +66,10 @@ public class Evaluation {
 				data  = new Data("tmp/database",        tapatanRules)                ;
 				data.addPosition(new Evaluation(        tapatanRules).getPositions());
 				data.release();
-				//data  = new Data("tmp/database", fiveMensMorrisRules)                ;
-				//new Evaluation(fiveMensMorrisRules)                                  ;
+				data  = new Data("tmp/database", fiveMensMorrisRules)                ;
+				new Evaluation(fiveMensMorrisRules)                                  ;
 				//for(Map<PositionState, Set<Long>> positions : fiveMensMorrisRules.getPositionsTree())
-				//	data.addPosition(positions);
+				data.addPosition(fiveMensMorrisRules.getPositionsTree().get(fiveMensMorrisRules.getPositionsTree().size() - 1));//	data.addPosition(positions);
 			} finally {
 				data.release();
 			}

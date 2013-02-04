@@ -7,11 +7,13 @@ import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.Point;
+import java.awt.Toolkit;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -26,7 +28,8 @@ import javax.swing.SwingWorker;
 
 public class Game extends Component implements MouseListener {
 	
-	public Game(Data data, Rules rules) throws Exception {
+	public Game(BufferedImage image, Data data, Rules rules) throws Exception {
+		this.background = image;
 		this.rules = rules;
 		movingPiecePosition = -1;
 		whites = new ArrayList<Point>();
@@ -34,16 +37,18 @@ public class Game extends Component implements MouseListener {
 		board = 0;
 		this.data = data;
 		random = new Random();
-		aiMove();
+		List<Long> positions = data.getPositionsByState(PositionState.ONLY_TO_LOSS);
+		board = positions.get(random.nextInt(positions.size()));
+		//aiMove();
 	}
 	
 	public static void main(String... args) {
 		JFrame frame = null;
 		try {
-			Rules rules = new ThreeMensMorrisRules();
+			Rules rules = new FiveMensMorrisRules();
 			final Data data = new Data("tmp/database", rules);
 			frame = new JFrame("Mills");
-			frame.setPreferredSize(new Dimension(300, 300));
+			frame.setPreferredSize(new Dimension(600, 600));
 			frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 			frame.addWindowListener(new WindowAdapter() {
 				
@@ -54,7 +59,7 @@ public class Game extends Component implements MouseListener {
 				}
 				
 			});
-			Game game = new Game(data, rules);
+			Game game = new Game(ImageIO.read(new File("html/Six_Men's_Morris.jpg")), data, rules);
 			game.addMouseListener(game);
 			frame.add(game, BorderLayout.CENTER);
 			frame.pack();
@@ -70,8 +75,8 @@ public class Game extends Component implements MouseListener {
 		Dimension size = getSize();
 		graphics.drawImage(background, 0, 0, size.width, size.height, null);
 
-		int startX = 7*size.width/60;
-		int startY = 7*size.height/60;
+		/*int startX = 7*size.width/120 + size.width/20;
+		int startY = 7*size.height/120 + size.height/20;
 		int stepX = size.width/3;
 		int stepY = size.height/3;
 		long id = board;
@@ -81,11 +86,19 @@ public class Game extends Component implements MouseListener {
 			graphics.setColor(value == PieceType.OPPONENTS.VALUE ? Color.YELLOW : Color.DARK_GRAY);
 			if(value != PieceType.NONE.VALUE)
 				graphics.fillOval(startX + (position%3)*stepX, startY + (position/3)*stepY, size.width/10, size.height/10);
-		}
+		}*/
+		long id = board;
+		for(int index = 0; index < intersections.length; index++) {
+				int value = 3 & (int) id;
+				id = id >> 2;
+				graphics.setColor(value == PieceType.OPPONENTS.VALUE ? Color.YELLOW : Color.DARK_GRAY);
+				if(value != PieceType.NONE.VALUE)
+					graphics.fillOval(intersections[index].x - size.width/20, intersections[index].y - size.height/20, size.width/10, size.height/10);
+			}
 	};
 	
-	private void moveTo(int x, int y) {
-		int palceIndex = y*3 + x;
+	private void moveTo(int palceIndex) {
+		System.out.println("Move to [" + palceIndex + "]");
 		if(
 				rules.howManyPiecesOf(board, PieceType.MINE) == 3 && rules.howManyPiecesOf(board, PieceType.OPPONENTS) == 3) {
 			if(movingPiecePosition < 0) {
@@ -100,8 +113,10 @@ public class Game extends Component implements MouseListener {
 			movingPiecePosition = -1;
 			if(rules.isPositionReachableBy(board, newBoard, PieceType.OPPONENTS))
 				board = newBoard;
-			else
+			else {
+				System.out.println("Position is not reachable");
 				return;
+			}
 		} else {
 			long newBoard = putTo(palceIndex, PieceType.OPPONENTS);
 			if(newBoard < 0)
@@ -185,12 +200,19 @@ public class Game extends Component implements MouseListener {
 	long board;
 	int movingPiecePosition;
 	Rules rules;
+	Point[] intersections = new Point[] {
+			new Point(60, 60), new Point(300, 60), new Point(540, 60),
+			new Point(180, 180), new Point(300, 180), new Point(420, 180),
+			new Point(60, 300), new Point(180, 300), new Point(420, 300), new Point(540, 300),
+			new Point(180, 420), new Point(300, 420), new Point(420, 420),
+			new Point(60, 540), new Point(300, 540), new Point(540, 540)
+	};
 	
 	@Override
 	public void mouseClicked(MouseEvent e) {
-		Dimension size = getSize();
-		int startX = 7*size.width/60;
-		int startY = 7*size.height/60;
+		/*Dimension size = getSize();
+		int startX = 7*size.width/120 + size.width/20;
+		int startY = 7*size.height/120 + size.height/20;
 		int stepX = size.width/3;
 		int stepY = size.height/3;
 		for(int y = 0; y < 3; y ++)
@@ -199,6 +221,11 @@ public class Game extends Component implements MouseListener {
 						Math.abs(startX + x*stepX - e.getX()) < size.width/10 &&
 						Math.abs(startY + y*stepY - e.getY()) < size.height/10)
 					moveTo(x, y);
+		}*/
+		
+		for(int index = 0; index < intersections.length; index++)
+				if(e.getPoint().distance(intersections[index]) < getSize().width/10)
+					moveTo(index);
 	}
 
 	@Override

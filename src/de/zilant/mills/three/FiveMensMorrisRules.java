@@ -117,7 +117,6 @@ public class FiveMensMorrisRules implements Rules {
 
 	@Override
 	public boolean isPositionReachableBy(long from, long to, PieceType typeOfMovingPiece) {
-		if(from % 2 != to %2) return false;
 		long differences = from ^ to;
 		int fromIndex    = -1;
 		int toIndex      = -1;
