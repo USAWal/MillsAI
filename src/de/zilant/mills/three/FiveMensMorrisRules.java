@@ -22,39 +22,45 @@ public class FiveMensMorrisRules implements Rules {
 			positionsTree.add(createPositions());
 		
 		for(long mostTopLine = 0; mostTopLine <= 0x2A; mostTopLine = increaseLine(mostTopLine))
-		for(long topLine = 0; topLine <= 0x2A; topLine = increaseLine(topLine))
-			for(long bottomLine = mostTopLine; bottomLine <= 0x2A; bottomLine = increaseLine(bottomLine))
-			for(long mostBottomLine = 0; mostBottomLine <= 0x2A; mostBottomLine = increaseLine(mostBottomLine))
-				for(long centerLne = 0; centerLne <= 0xAA; centerLne = increaseLine(centerLne)) {
-					long position = mostTopLine << 26 | topLine << 20 | centerLne << 12 | bottomLine << 6 | mostBottomLine;
-					int myPiecesNumber = howManyPiecesOf(position, PieceType.MINE);
-					int opponentsPiecesNumber = howManyPiecesOf(position, PieceType.OPPONENTS);
-					if(
-							myPiecesNumber        >= 3 && myPiecesNumber        <= whatsTheMaxOfPieces() &&
-							opponentsPiecesNumber >= 3 && opponentsPiecesNumber <= whatsTheMaxOfPieces()) {	
-						PieceType blocked = whoIsBlocked(position);
-						PieceType milled = whoHasAMill(position);
-						Map<PositionState, Set<Long>> positions = positionsTree.get((whatsTheMaxOfPieces()-myPiecesNumber)*(whatsTheMaxOfPieces()-2)+(whatsTheMaxOfPieces()-opponentsPiecesNumber));
-						long symmetricPosition = mostBottomLine << 26 | bottomLine << 20 | centerLne << 12 | topLine << 6 | mostTopLine;
-						if(milled == PieceType.BOTH && myPiecesNumber == 3 && opponentsPiecesNumber == 3) {
-							//positions.get(PositionState.WIN).add(position);
-							//positions.get(PositionState.WIN).add(symmetricPosition);
-							positions.get(PositionState.LOSS).add(position);
-							positions.get(PositionState.LOSS).add(symmetricPosition);
-						} else if(blocked== PieceType.OPPONENTS    || (milled == PieceType.MINE      && opponentsPiecesNumber == 3)) {
-							positions.get(PositionState.WIN).add(position);
-							positions.get(PositionState.WIN).add(symmetricPosition);
-						} else if(blocked == PieceType.MINE        || (milled == PieceType.OPPONENTS && myPiecesNumber        == 3)) {
-							positions.get(PositionState.LOSS).add(position);
-							positions.get(PositionState.LOSS).add(symmetricPosition);
-						} else {
-							positions.get(PositionState.DRAW).add(position);
-							positions.get(PositionState.DRAW).add(symmetricPosition);
-						}
-					}
+		for(long mostBottomLine = mostTopLine; mostBottomLine <= 0x2A; mostBottomLine = increaseLine(mostBottomLine))
+			for(long topLine = 0; topLine <= 0x2A; topLine = increaseLine(topLine))
+			for(long bottomLine = topLine; bottomLine <= 0x2A; bottomLine = increaseLine(bottomLine))
+				for(long centerLine = 0; centerLine <= 0xAA; centerLine = increaseLine(centerLine)) {
+					elementaryEvaluation(mostTopLine, topLine, centerLine, bottomLine, mostBottomLine);
+					if(mostTopLine != mostBottomLine && topLine != bottomLine)
+						elementaryEvaluation(mostTopLine, bottomLine, centerLine, topLine, mostBottomLine);
 				}
 		
 		return positionsTree;
+	}
+	
+	private void elementaryEvaluation(long mostTopLine, long topLine, long centerLine, long bottomLine, long mostBottomLine) {
+		long position = mostTopLine << 26 | topLine << 20 | centerLine << 12 | bottomLine << 6 | mostBottomLine;
+		int myPiecesNumber = howManyPiecesOf(position, PieceType.MINE);
+		int opponentsPiecesNumber = howManyPiecesOf(position, PieceType.OPPONENTS);
+		if(
+				myPiecesNumber        >= 3 && myPiecesNumber        <= whatsTheMaxOfPieces() &&
+				opponentsPiecesNumber >= 3 && opponentsPiecesNumber <= whatsTheMaxOfPieces()) {	
+			PieceType blocked = whoIsBlocked(position);
+			PieceType milled = whoHasAMill(position);
+			Map<PositionState, Set<Long>> positions = positionsTree.get((whatsTheMaxOfPieces()-myPiecesNumber)*(whatsTheMaxOfPieces()-2)+(whatsTheMaxOfPieces()-opponentsPiecesNumber));
+			long symmetricPosition = mostBottomLine << 26 | bottomLine << 20 | centerLine << 12 | topLine << 6 | mostTopLine;
+			if(milled == PieceType.BOTH && myPiecesNumber == 3 && opponentsPiecesNumber == 3) {
+				positions.get(PositionState.WIN).add(position);
+				positions.get(PositionState.WIN).add(symmetricPosition);
+				positions.get(PositionState.LOSS).add(position);
+				positions.get(PositionState.LOSS).add(symmetricPosition);
+			} else if(blocked== PieceType.OPPONENTS    || (milled == PieceType.MINE      && opponentsPiecesNumber == 3)) {
+				positions.get(PositionState.WIN).add(position);
+				positions.get(PositionState.WIN).add(symmetricPosition);
+			} else if(blocked == PieceType.MINE        || (milled == PieceType.OPPONENTS && myPiecesNumber        == 3)) {
+				positions.get(PositionState.LOSS).add(position);
+				positions.get(PositionState.LOSS).add(symmetricPosition);
+			} else {
+				positions.get(PositionState.DRAW).add(position);
+				positions.get(PositionState.DRAW).add(symmetricPosition);
+			}
+		}		
 	}
 
 	@Override
