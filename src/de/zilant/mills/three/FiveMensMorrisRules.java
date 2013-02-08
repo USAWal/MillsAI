@@ -12,6 +12,9 @@ import java.util.TreeSet;
 public class FiveMensMorrisRules implements Rules {
 	
 	@Override
+	public int whatsTheMaxOfPlaces() { return 16; }
+	
+	@Override
 	public int whatsTheMaxOfPieces() { return 5; }
 
 	@Override
@@ -45,12 +48,21 @@ public class FiveMensMorrisRules implements Rules {
 			PieceType milled = whoHasAMill(position);
 			Map<PositionState, Set<Long>> positions = positionsTree.get((whatsTheMaxOfPieces()-myPiecesNumber)*(whatsTheMaxOfPieces()-2)+(whatsTheMaxOfPieces()-opponentsPiecesNumber));
 			long symmetricPosition = mostBottomLine << 26 | bottomLine << 20 | centerLine << 12 | topLine << 6 | mostTopLine;
-			if(milled == PieceType.BOTH && myPiecesNumber == 3 && opponentsPiecesNumber == 3) {
-				positions.get(PositionState.WIN).add(position);
-				positions.get(PositionState.WIN).add(symmetricPosition);
-				positions.get(PositionState.LOSS).add(position);
-				positions.get(PositionState.LOSS).add(symmetricPosition);
-			} else if(blocked== PieceType.OPPONENTS    || (milled == PieceType.MINE      && opponentsPiecesNumber == 3)) {
+			if(milled == PieceType.BOTH) {
+				if(myPiecesNumber == 3) {
+					positions.get(PositionState.LOSS).add(position);
+					positions.get(PositionState.LOSS).add(symmetricPosition);
+				}
+				if(opponentsPiecesNumber == 3) {
+					positions.get(PositionState.WIN).add(position);
+					positions.get(PositionState.WIN).add(symmetricPosition);	
+				}
+				if(myPiecesNumber != 3 || opponentsPiecesNumber != 3) {
+					positions.get(PositionState.DRAW).add(position);
+					positions.get(PositionState.DRAW).add(symmetricPosition);					
+				}
+
+			} else if(blocked == PieceType.OPPONENTS   || (milled == PieceType.MINE      && opponentsPiecesNumber == 3)) {
 				positions.get(PositionState.WIN).add(position);
 				positions.get(PositionState.WIN).add(symmetricPosition);
 			} else if(blocked == PieceType.MINE        || (milled == PieceType.OPPONENTS && myPiecesNumber        == 3)) {

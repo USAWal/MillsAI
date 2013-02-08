@@ -8,6 +8,7 @@ import de.zilant.mills.three.PieceType;
 
 
 public interface Rules {
+	int                                  whatsTheMaxOfPlaces     (                                                   );
 	int                                  whatsTheMaxOfPieces     (                                                   );
 	List <Map<PositionState, Set<Long>>> getPositionsTree        (                                                   );
 	int                                  whatsTheCode            (                                                   );

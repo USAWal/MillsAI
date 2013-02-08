@@ -27,6 +27,9 @@ public class ThreeMensMorrisRules implements Rules {
 	}
 	
 	@Override
+	public int whatsTheMaxOfPlaces() { return 9; }
+	
+	@Override
 	public int whatsTheMaxOfPieces() { return 3; }
 	
 	@Override
