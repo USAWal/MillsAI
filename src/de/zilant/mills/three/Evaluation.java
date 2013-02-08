@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Stack;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.logging.Logger;
@@ -18,9 +19,46 @@ public class Evaluation {
 		this.rules     = rules;
 		
 		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Evaluation was started.");
-		for(int index = rules.getPositionsTree().size() - 1; index >= rules.getPositionsTree().size() - 1; index--) {
-			this.positions = rules.getPositionsTree().get(index);
-			evaluate();
+		this.positions = rules.getPositionsTree().get(rules.getPositionsTree().size() - 1);
+		evaluate();
+		if(rules.getPositionsTree().size() > 1) {
+			for(int index = rules.getPositionsTree().size() - 2; index >= rules.getPositionsTree().size() - rules.whatsTheMaxOfPieces() + 2; index--) {
+				this.positions = rules.getPositionsTree().get(index);
+				Map<PositionState, Set<Long>> evaluations = new EnumMap<PositionState, Set<Long>>(PositionState.class);
+				for(long position : positions.get(PositionState.DRAW)) {
+					PieceType whoseTheMill = rules.whoHasAMill(position);
+					if(whoseTheMill == PieceType.MINE || whoseTheMill == PieceType.BOTH) {
+						Collection<Long> reducedPositions = removePiece(PieceType.OPPONENTS, position);
+						int state = PositionState.LOSS.VALUE - 1;
+						for(long reducedPosition : reducedPositions) {
+							minimaxStack.push(reducedPosition);
+							int newState = getMin(reducedPosition, rules.getPositionsTree().get(index + 1));
+							minimaxStack.pop();
+							if(newState > state)
+								state = newState;
+						}
+						if(state <= PositionState.LOSS.VALUE || state >= PositionState.WIN.VALUE)
+							System.out.println("Connected position [" + position + "] evaluated [" + state + "] not in evaluation range");
+						else if(state != PositionState.DRAW.VALUE) {
+							PositionState pState = PositionState.getStateOf(state);
+							Set<Long> evaluatedPositions = evaluations.get(pState);
+							if(evaluatedPositions == null) {
+								evaluatedPositions = new TreeSet<Long>();
+								evaluations.put(pState, evaluatedPositions);
+							}
+							evaluatedPositions.add(position);
+						}
+							
+					}
+				}
+				for(PositionState state : evaluations.keySet()) {
+					Set<Long> statedPositions = evaluations.get(state);
+					positions.get(PositionState.DRAW).removeAll(statedPositions);
+					positions.get(state).addAll(statedPositions);
+				}
+				evaluate();
+				//positions.get(PositionState.LOSS).clear();
+			}
 		}
 		if(!(rules instanceof FiveMensMorrisRules)) {
 		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Start minimax evaluation.");
@@ -34,6 +72,76 @@ public class Evaluation {
 			positions.get(minimaxPositions.get(position)).add(position);	
 		
 		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Evaluation is just finished.");
+	}
+	
+	private int getMin(long position, Map<PositionState, Set<Long>> positions) {
+		int state = PositionState.WIN.VALUE + 1;
+		PieceType whoseMillIs = rules.whoHasAMill(position);
+		for(long reachable : rules.getReachablePositionsBy(position, PieceType.OPPONENTS)) {
+			PieceType whoseMillNowIs = rules.whoHasAMill(reachable);
+			PieceType whoBlockedIs = rules.whoIsBlocked(reachable);
+			if(whoBlockedIs == PieceType.MINE || positions.get(PositionState.LOSS).contains(reachable) && (whoseMillIs == PieceType.MINE && whoseMillNowIs == PieceType.BOTH || whoseMillIs == PieceType.NONE && whoseMillNowIs == PieceType.OPPONENTS))
+				return PositionState.ONLY_TO_LOSS.VALUE;
+			else if(minimaxStack.contains(reachable)) {
+				if(PositionState.DRAW.VALUE < state)
+					state = PositionState.DRAW.VALUE;
+			} else {
+				minimaxStack.push(reachable);
+				int newState = getMax(reachable, positions);
+				minimaxStack.pop();
+				if(newState < state)
+					state = newState;
+			}
+		}
+		return state;
+	}
+	
+	private int getMax(long position, Map<PositionState, Set<Long>> positions) {
+		int state = PositionState.LOSS.VALUE - 1;
+		for(long reachable : rules.getReachablePositionsBy(position, PieceType.MINE)) {
+			for(int rawState = PositionState.WIN.VALUE; rawState > state; rawState--)
+				if(positions.get(PositionState.getStateOf(rawState)).contains(reachable))
+					state = rawState;
+			if(state == PositionState.LOSS.VALUE) {
+				if (minimaxStack.contains(reachable)) state = PositionState.DRAW.VALUE;
+				else {
+					minimaxStack.push(reachable);
+					state = getMin(reachable, positions);
+					minimaxStack.pop();
+				}
+			}
+		}
+		return state;
+	}
+	
+	private Stack<Long> minimaxStack = new Stack<Long>();
+	
+	private Collection<Long> removePiece(PieceType pieceType, long position) {
+		Collection<Long> brokenMill = new TreeSet<Long>();
+		Collection<Long> unbrokenMill = new TreeSet<Long>();
+		PieceType whoseTheMill = rules.whoHasAMill(position);
+		
+		for(long mask = pieceType.VALUE; mask < (long) pieceType.VALUE << 2*rules.whatsTheMaxOfPlaces(); mask <<= 2)
+			if((mask & position) != 0) {
+				long newPosition = ~mask & position;
+				(whoseTheMill == rules.whoHasAMill(newPosition) ? unbrokenMill : brokenMill).add(newPosition);
+			}
+		
+		
+		return unbrokenMill.isEmpty() ? brokenMill : unbrokenMill;
+	}
+	
+	private Collection<Long> addPiece(PieceType pieceType, Collection<Long> ... positions) {
+		Collection<Long> result = new TreeSet<Long>();
+		for(Collection<Long> positionCollection : positions)
+			for(Long position : positionCollection) {
+				long mask = 3;
+				for(long value = pieceType.VALUE; value < pieceType.VALUE << 32; value <<= 2) {
+					if((position & mask) == 0) result.add(position | value);
+					mask <<= 2;
+				}
+			}
+		return result;
 	}
 	
 	private void evaluate() {
@@ -69,7 +177,8 @@ public class Evaluation {
 				data  = new Data("tmp/database", fiveMensMorrisRules)                ;
 				new Evaluation(fiveMensMorrisRules)                                  ;
 				//for(Map<PositionState, Set<Long>> positions : fiveMensMorrisRules.getPositionsTree())
-				data.addPosition(fiveMensMorrisRules.getPositionsTree().get(fiveMensMorrisRules.getPositionsTree().size() - 1));//	data.addPosition(positions);
+				for(int index = 1; index <= 3; index++)
+					data.addPosition(fiveMensMorrisRules.getPositionsTree().get(fiveMensMorrisRules.getPositionsTree().size() - index));//	data.addPosition(positions);
 			} finally {
 				data.release();
 			}
@@ -80,7 +189,17 @@ public class Evaluation {
 	
 	private void fillOnlyToLosses() {
 		System.out.println("fillOnlyToLosses start");
-		Collection<Long> newLosses = getReachablePositions(PieceType.OPPONENTS, positions.get(PositionState.DRAW), positions.get(PositionState.LOSS));
+		Collection<Long> newLosses = new TreeSet<Long>();
+		for(long newLoss : getReachablePositions(PieceType.OPPONENTS, positions.get(PositionState.DRAW), positions.get(PositionState.LOSS))) {
+			PieceType milled = rules.whoHasAMill(newLoss);
+			for(long reachable : rules.getReachablePositionsBy(newLoss, PieceType.OPPONENTS)) {
+				PieceType newLossMilled = rules.whoHasAMill(reachable);
+				if(rules.whoIsBlocked(reachable) == PieceType.MINE || milled == PieceType.NONE && newLossMilled == PieceType.OPPONENTS || milled == PieceType.MINE && newLossMilled == PieceType.BOTH) {
+					newLosses.add(newLoss);
+					break;
+				}
+			}
+		}
 		System.out.println("newLosses size is [" + newLosses.size() + "]");
 		positions.get(PositionState.DRAW).removeAll(newLosses);
 		positions.get(PositionState.ONLY_TO_LOSS).addAll(newLosses);
