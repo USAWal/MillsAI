@@ -20,11 +20,14 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ExecutionException;
 
 import javax.imageio.ImageIO;
 import javax.swing.JFrame;
 import javax.swing.SwingWorker;
+
+import sun.net.www.content.text.plain;
 
 public class Game extends Component implements MouseListener {
 	
@@ -38,7 +41,11 @@ public class Game extends Component implements MouseListener {
 		this.data = data;
 		random = new Random();
 		List<Long> positions = data.getPositionsByState(PositionState.ONLY_TO_LOSS);
-		board = positions.get(random.nextInt(positions.size()));
+		List<Long> result = new ArrayList<Long>();
+		for(long position : positions)
+			if(rules.howManyPiecesOf(position, PieceType.MINE) == 3 && rules.howManyPiecesOf(position, PieceType.OPPONENTS) == 5)
+				result.add(position);
+		board = result.get(random.nextInt(result.size()));
 		//aiMove();
 	}
 	
@@ -97,33 +104,48 @@ public class Game extends Component implements MouseListener {
 			}
 	};
 	
+	private boolean needToRemove = false;
+	
 	private void moveTo(int palceIndex) {
 		System.out.println("Move to [" + palceIndex + "]");
-		if(
-				rules.howManyPiecesOf(board, PieceType.MINE) == 3 && rules.howManyPiecesOf(board, PieceType.OPPONENTS) == 3) {
-			if(movingPiecePosition < 0) {
-				if(((board >> palceIndex*2) & 3) == PieceType.OPPONENTS.VALUE) {
-					movingPiecePosition = palceIndex;
+		//if(
+		//		rules.howManyPiecesOf(board, PieceType.MINE) == 3 && rules.howManyPiecesOf(board, PieceType.OPPONENTS) == 3) {
+			if(needToRemove) {
+				long mask = PieceType.MINE.VALUE << palceIndex*2;
+				if((board & mask) != 0) {
+					board &= ~mask;
+					needToRemove = false;
 				}
+					
 				return;
+			} else {
+				if(movingPiecePosition < 0) {
+					if(((board >> palceIndex*2) & 3) == PieceType.OPPONENTS.VALUE) {
+						movingPiecePosition = palceIndex;
+					}
+					return;
+				}
+				long newBoardId = (board & ~(3 << palceIndex*2)) | (PieceType.OPPONENTS.VALUE << palceIndex*2);
+				newBoardId = newBoardId & ~(3 << movingPiecePosition*2);
+				long newBoard = newBoardId;
+				movingPiecePosition = -1;
+				if(rules.isPositionReachableBy(board, newBoard, PieceType.OPPONENTS)) {
+					PieceType whoTheMillHad = rules.whoHasAMill(board);
+					PieceType whoTheMillHas = rules.whoHasAMill(newBoard);
+					board = newBoard;
+					needToRemove = whoTheMillHad == PieceType.NONE && whoTheMillHas == PieceType.OPPONENTS || whoTheMillHad == PieceType.MINE && whoTheMillHas == PieceType.BOTH;
+				} else {
+					System.out.println("Position is not reachable");
+					return;
+				}
 			}
-			long newBoardId = (board & ~(3 << palceIndex*2)) | (PieceType.OPPONENTS.VALUE << palceIndex*2);
-			newBoardId = newBoardId & ~(3 << movingPiecePosition*2);
-			long newBoard = newBoardId;
-			movingPiecePosition = -1;
-			if(rules.isPositionReachableBy(board, newBoard, PieceType.OPPONENTS))
-				board = newBoard;
-			else {
-				System.out.println("Position is not reachable");
-				return;
-			}
-		} else {
+		/*} else {
 			long newBoard = putTo(palceIndex, PieceType.OPPONENTS);
 			if(newBoard < 0)
 				return;
 			else
 				board = newBoard;
-		}
+		}*/
 		repaint();
 		aiMove();
 	}
@@ -154,8 +176,40 @@ public class Game extends Component implements MouseListener {
 			@Override
 			protected void done() {
 				try {
-					board = get();
+					long newBoard = get();
+					PieceType whoTheMillHad = rules.whoHasAMill(board);
+					PieceType whoTheMillHas = rules.whoHasAMill(newBoard);
+					board = newBoard;
 					repaint();
+					if(whoTheMillHad == PieceType.NONE && whoTheMillHas == PieceType.MINE || whoTheMillHad == PieceType.OPPONENTS && whoTheMillHas == PieceType.BOTH)
+						new SwingWorker<Long, Object>() {
+							@Override
+							protected Long doInBackground() throws Exception {
+								Collection<Long> reduced = removePiece(PieceType.OPPONENTS, board);
+								for(int rawState = PositionState.WIN.VALUE; rawState >= PositionState.LOSS.VALUE; rawState --) {
+									List<Long> boards = data.getPositionsByState(PositionState.getStateOf(rawState));
+									if(!boards.isEmpty()) {
+										for(Long position : reduced)
+											if(boards.contains(position)) return position;
+									}
+								}
+								return null;
+							}
+							
+							protected void done() {
+								try {
+									board = get();
+									repaint();
+								} catch (InterruptedException e) {
+									// TODO Auto-generated catch block
+									e.printStackTrace();
+								} catch (ExecutionException e) {
+									// TODO Auto-generated catch block
+									e.printStackTrace();
+								}
+							};
+						}.execute();
+					
 				} catch (InterruptedException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -165,9 +219,24 @@ public class Game extends Component implements MouseListener {
 				}
 			}
 			
+			private Collection<Long> removePiece(PieceType pieceType, long position) {
+				Collection<Long> brokenMill = new TreeSet<Long>();
+				Collection<Long> unbrokenMill = new TreeSet<Long>();
+				PieceType whoseTheMill = rules.whoHasAMill(position);
+				
+				for(long mask = pieceType.VALUE; mask < (long) pieceType.VALUE << 2*rules.whatsTheMaxOfPlaces(); mask <<= 2)
+					if((mask & position) != 0) {
+						long newPosition = ~mask & position;
+						(whoseTheMill == rules.whoHasAMill(newPosition) ? unbrokenMill : brokenMill).add(newPosition);
+					}
+				
+				
+				return unbrokenMill.isEmpty() ? brokenMill : unbrokenMill;
+			}
+			
 			private List<Long> getAppropriateMove(Long board, Collection<Long> boards, PieceType type) {
 				List<Long> result = new ArrayList<Long>();
-				boolean isMiddleStage = rules.howManyPiecesOf(board, PieceType.MINE) == 3 && rules.howManyPiecesOf(board, PieceType.OPPONENTS) == 3;
+				boolean isMiddleStage = true;//rules.howManyPiecesOf(board, PieceType.MINE) == 3 && rules.howManyPiecesOf(board, PieceType.OPPONENTS) == 3;
 				for(Long to : boards) {
 					if(isMiddleStage) {
 						if(rules.isPositionReachableBy(board, to, PieceType.MINE))
