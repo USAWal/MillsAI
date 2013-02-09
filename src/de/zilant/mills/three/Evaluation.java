@@ -17,6 +17,7 @@ public class Evaluation {
 	
 	public Evaluation(Rules rules) {
 		this.rules     = rules;
+		minimaxPositions = new TreeMap<Long, PositionState>();
 		
 		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Evaluation was started.");
 		this.positions = rules.getPositionsTree().get(rules.getPositionsTree().size() - 1);
@@ -32,7 +33,7 @@ public class Evaluation {
 						int state = PositionState.LOSS.VALUE - 1;
 						for(long reducedPosition : reducedPositions) {
 							minimaxStack.push(reducedPosition);
-							int newState = getMin(reducedPosition, rules.getPositionsTree().get(index + 1));
+							int newState = getMin(reducedPosition, rules.getPositionsTree().get(index + 1));							
 							minimaxStack.pop();
 							if(newState > state)
 								state = newState;
@@ -62,11 +63,10 @@ public class Evaluation {
 		}
 		if(!(rules instanceof FiveMensMorrisRules)) {
 		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Start minimax evaluation.");
-		minimaxPositions = new TreeMap<Long, PositionState>();
 	    startMinimaxWith(0, true);
 	    startMinimaxWith(0, false);}
 	    for(int index = rules.getPositionsTree().size() - 1; index >= rules.getPositionsTree().size() - rules.whatsTheMaxOfPieces() + 2; index--)
-	    	positions.get(PositionState.LOSS).clear();
+	    	rules.getPositionsTree().get(index).get(PositionState.LOSS).clear();
 	    if(!(rules instanceof FiveMensMorrisRules))
 	    for(Long position : minimaxPositions.keySet())
 			positions.get(minimaxPositions.get(position)).add(position);	
@@ -103,12 +103,15 @@ public class Evaluation {
 				if(positions.get(PositionState.getStateOf(rawState)).contains(reachable))
 					state = rawState;
 			if(state == PositionState.LOSS.VALUE) {
-				if (minimaxStack.contains(reachable)) state = PositionState.DRAW.VALUE;
+				PositionState previouslySavedState = minimaxPositions.get(reachable);
+				if(previouslySavedState != null) return previouslySavedState.VALUE;
+				else if (minimaxStack.contains(reachable)) state = PositionState.DRAW.VALUE;
 				else {
 					minimaxStack.push(reachable);
 					state = getMin(reachable, positions);
 					minimaxStack.pop();
 				}
+				minimaxPositions.put(reachable, PositionState.getStateOf(state));
 			}
 		}
 		return state;
