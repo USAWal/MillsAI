@@ -15,7 +15,10 @@ public class FiveMensMorrisRules implements Rules {
 	public int whatsTheMaxOfPlaces() { return 16; }
 	
 	@Override
-	public int whatsTheMaxOfPieces() { return 5; }
+	public int whatsTheMaxOfPieces() { return  5; }
+	
+	@Override
+	public int whatsTheCode()        { return  3; }
 
 	@Override
 	public List<Map<PositionState, Set<Long>>> getPositionsTree() {
@@ -74,9 +77,6 @@ public class FiveMensMorrisRules implements Rules {
 			}
 		}		
 	}
-
-	@Override
-	public int whatsTheCode() { return 3; }
 
 	@Override
 	public PieceType whoIsBlocked(long position) {
@@ -175,7 +175,7 @@ public class FiveMensMorrisRules implements Rules {
 				for(int neighbourIndex = 1; neighbourIndex < connections[intersectionIndex].length; neighbourIndex++) {
 					int connectedIntersection = connections[intersectionIndex][neighbourIndex];
 					if(connections[connectedIntersection][0] == PieceType.NONE.VALUE)
-						result.add(positionWithoutPiece | pieceType.VALUE << 2*connectedIntersection);
+						result.add(positionWithoutPiece | (long) pieceType.VALUE << 2*connectedIntersection);
 				}
 			}
 		}
@@ -185,11 +185,16 @@ public class FiveMensMorrisRules implements Rules {
 
 	@Override
 	public long reflectHorizontally(long position) {
-		return (position & 0xFC000000) >> 26 | (position & 0x3F00000) >> 14 | position & 0xFF000  | (position & 0xFC0) << 14  | (position & 0x3F) << 26;
+		return
+				(position & 0xFC000000) >> 26 |
+				(position & 0x03F00000) >> 14 |
+				 position & 0x000FF000        |
+				(position & 0x00000FC0) << 14 |
+				(position & 0x0000003F) << 26;
 	}
 
 	@Override
-	public long reflectVertically(long position) {
+	public long reflectVertically  (long position) {
 		return 
 				(position & 0x0000C000) >>  2 |
 				(position & 0x0C3000C3) >>  4 | 
@@ -202,13 +207,8 @@ public class FiveMensMorrisRules implements Rules {
 	
 	private Map<PositionState,Set<Long>> createPositions() {
 		Map<PositionState,Set<Long>> positions = new EnumMap<PositionState, Set<Long>>(PositionState.class);
-		positions.put(PositionState.WIN,          new TreeSet<Long>());
-		positions.put(PositionState.ONLY_TO_WIN,  new TreeSet<Long>());
-		positions.put(PositionState.TO_WIN,       new TreeSet<Long>());
-		positions.put(PositionState.DRAW,         new TreeSet<Long>());
-		positions.put(PositionState.TO_LOSS,      new TreeSet<Long>());
-		positions.put(PositionState.ONLY_TO_LOSS, new TreeSet<Long>());
-		positions.put(PositionState.LOSS,         new TreeSet<Long>());
+		for(int raw = PositionState.LOSS.VALUE; raw <= PositionState.WIN.VALUE; raw++)
+			positions.put(PositionState.getStateOf(raw), new TreeSet<Long>());
 		return positions;
 	}
 	
@@ -231,7 +231,7 @@ public class FiveMensMorrisRules implements Rules {
 	
 	private List<Map<PositionState, Set<Long>>> positionsTree = null;
 	
-	private int[][] connections = new int[][] {
+	private int[][] connections                               = new int[][] {
 			{0,  1,  6    },
 			{0,  0,  2,  4},
 			{0,  1,  9    },
@@ -254,10 +254,10 @@ public class FiveMensMorrisRules implements Rules {
 			{0,  9, 14    },
 	};
 	
-	private long[] verticalMillsMasks = new long[] {
-			0x04001001,
-			0x40040010,
-			0x00104040,
+	private long[]  verticalMillsMasks                        = new long[]  {
+			0x04001001     ,
+			0x40040010     ,
+			0x00104040     ,
 			0x01010400
 	};
 	
