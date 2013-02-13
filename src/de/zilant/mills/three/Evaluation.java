@@ -159,6 +159,33 @@ public class Evaluation {
 
 		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Evaluate:\talso to wins.");
 		fillToWins();
+		
+		if(rules.getPositionsTree().size() > 1) {			
+			Map<PositionState, Set<Long>> evaluations = new EnumMap<PositionState, Set<Long>>(PositionState.class);
+			for(long position : positions.get(PositionState.LOSS)) {
+				if(rules.whoIsBlocked(position) != PieceType.MINE && !positions.get(PositionState.WIN).contains(position)) {
+					int state = getMin(position, positions);
+					if(state == PositionState.WIN.VALUE)
+						state = PositionState.ONLY_TO_WIN.VALUE;
+					if(state <= PositionState.LOSS.VALUE || state >= PositionState.WIN.VALUE)
+						System.out.println("Connected position [" + position + "] evaluated [" + state + "] not in evaluation range");
+					else {
+						PositionState pState = PositionState.getStateOf(state);
+						Set<Long> evaluatedPositions = evaluations.get(pState);
+						if(evaluatedPositions == null) {
+							evaluatedPositions = new TreeSet<Long>();
+							evaluations.put(pState, evaluatedPositions);
+						}
+						evaluatedPositions.add(position);
+					}
+				}
+			}
+			for(PositionState state : evaluations.keySet()) {
+				Set<Long> statedPositions = evaluations.get(state);
+				positions.get(PositionState.LOSS).removeAll(statedPositions);
+				positions.get(state).addAll(statedPositions);
+			}
+		}
 	}
 	
 	public Map<PositionState, Set<Long>> getPositions() { return positions; }
@@ -210,7 +237,10 @@ public class Evaluation {
 		while(!newLosses.isEmpty()) {
 			Set<Long> onlyToLosses = new HashSet<Long>();
 			for(Long position : getReachablePositions(PieceType.MINE, positions.get(PositionState.DRAW), newLosses))
-				if(!isReachableBy(position, positions.get(PositionState.WIN), PieceType.MINE) && !isReachableBy(position, positions.get(PositionState.DRAW), PieceType.MINE))
+				if(
+						!isReachableBy(position, positions.get(PositionState.ONLY_TO_WIN), PieceType.MINE)  &&
+						!isReachableBy(position, positions.get(PositionState.WIN        ), PieceType.MINE)  &&
+						!isReachableBy(position, positions.get(PositionState.DRAW       ), PieceType.MINE))
 					onlyToLosses.add(position);
 			newLosses = getReachablePositions(PieceType.OPPONENTS, positions.get(PositionState.DRAW), onlyToLosses);
 			positions.get(PositionState.DRAW).removeAll(newLosses);
@@ -227,14 +257,14 @@ public class Evaluation {
 			Set<Long> losses = new TreeSet<Long>(positions.get(PositionState.ONLY_TO_LOSS));
 			losses.addAll(positions.get(PositionState.TO_LOSS));
 			for(Long position : getReachablePositions(PieceType.MINE, losses, losses))
-				if(!isReachableBy(position, positions.get(PositionState.WIN), PieceType.MINE) && !isReachableBy(position, positions.get(PositionState.DRAW), PieceType.MINE))
+				if(!isReachableBy(position, positions.get(PositionState.ONLY_TO_WIN), PieceType.MINE) && !isReachableBy(position, positions.get(PositionState.WIN), PieceType.MINE) && !isReachableBy(position, positions.get(PositionState.DRAW), PieceType.MINE))
 					onlyToLosses.add(position);
 			newLosses = getReachablePositions(PieceType.OPPONENTS, positions.get(PositionState.DRAW), onlyToLosses);
 			positions.get(PositionState.DRAW).removeAll(newLosses);
 			prolonge = !newLosses.isEmpty();
 			
 			for(Long position : getReachablePositions(PieceType.MINE, positions.get(PositionState.DRAW), newLosses))
-				if(!isReachableBy(position, positions.get(PositionState.WIN), PieceType.MINE) && !isReachableBy(position, positions.get(PositionState.DRAW), PieceType.MINE))
+				if(!isReachableBy(position, positions.get(PositionState.ONLY_TO_WIN), PieceType.MINE) && !isReachableBy(position, positions.get(PositionState.WIN), PieceType.MINE) && !isReachableBy(position, positions.get(PositionState.DRAW), PieceType.MINE))
 					onlyToLosses.add(position);
 			newLosses2 = getReachablePositions(PieceType.OPPONENTS, positions.get(PositionState.DRAW), onlyToLosses);
 			positions.get(PositionState.DRAW).removeAll(newLosses2);

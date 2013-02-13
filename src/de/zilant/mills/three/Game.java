@@ -43,7 +43,7 @@ public class Game extends Component implements MouseListener {
 		List<Long> positions = data.getPositionsByState(PositionState.ONLY_TO_LOSS);
 		List<Long> result = new ArrayList<Long>();
 		for(long position : positions)
-			if(rules.howManyPiecesOf(position, PieceType.MINE) == 3 && rules.howManyPiecesOf(position, PieceType.OPPONENTS) == 5)
+			if(rules.howManyPiecesOf(position, PieceType.MINE) == 3 && rules.howManyPiecesOf(position, PieceType.OPPONENTS) == 4)
 				result.add(position);
 		board = result.get(random.nextInt(result.size()));
 		//aiMove();
@@ -102,6 +102,8 @@ public class Game extends Component implements MouseListener {
 				if(value != PieceType.NONE.VALUE)
 					graphics.fillOval(intersections[index].x - size.width/20, intersections[index].y - size.height/20, size.width/10, size.height/10);
 			}
+		graphics.setColor(Color.BLACK);
+		graphics.drawString("Position is [" + board + "]", 0, 20);
 	};
 	
 	private boolean needToRemove = false;
@@ -185,15 +187,30 @@ public class Game extends Component implements MouseListener {
 						new SwingWorker<Long, Object>() {
 							@Override
 							protected Long doInBackground() throws Exception {
-								Collection<Long> reduced = removePiece(PieceType.OPPONENTS, board);
-								for(int rawState = PositionState.WIN.VALUE; rawState >= PositionState.LOSS.VALUE; rawState --) {
-									List<Long> boards = data.getPositionsByState(PositionState.getStateOf(rawState));
-									if(!boards.isEmpty()) {
-										for(Long position : reduced)
-											if(boards.contains(position)) return position;
+								Long result = null;
+								int resultState = PositionState.LOSS.VALUE - 1;
+								for(long reduced : removePiece(PieceType.OPPONENTS, board)) {
+									int minState = PositionState.WIN.VALUE + 1;
+									for(long opponentMove : rules.getReachablePositionsBy(reduced, PieceType.OPPONENTS)) {
+										int maxState = PositionState.LOSS.VALUE - 1;
+										for(int rawState = PositionState.WIN.VALUE; rawState > maxState; rawState --) {
+											List<Long> poses = data.getPositionsByState(PositionState.getStateOf(rawState));
+											for(long myMove : rules.getReachablePositionsBy(opponentMove, PieceType.MINE))
+												if(poses.contains(myMove)) {
+													maxState = rawState;
+													break;
+												}
+										}
+										if(maxState < minState)
+											minState = maxState;
+									}
+									if(minState > resultState) {
+										resultState = minState;
+										result = reduced;
 									}
 								}
-								return null;
+								
+								return result;
 							}
 							
 							protected void done() {
