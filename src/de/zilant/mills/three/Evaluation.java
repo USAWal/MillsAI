@@ -274,35 +274,22 @@ public class Evaluation {
 	}
 	
 	private void fillOnlyToWins() {
-		Collection<Long> toWins = null;
-		Set<Long> onlyToWins = null;
-		
+		Collection<Long> onlyToWins = null;
 		do {
-			toWins = getReachablePositions(PieceType.MINE, positions.get(PositionState.DRAW), positions.get(PositionState.WIN), positions.get(PositionState.ONLY_TO_WIN));
-			positions.get(PositionState.DRAW).removeAll(toWins);
+			Collection<Long> toWins = getReachablePositions(PieceType.MINE, positions.get(PositionState.ONLY_TO_LOSS), positions.get(PositionState.WIN), positions.get(PositionState.ONLY_TO_WIN)) ;
+			toWins            .addAll(getReachablePositions(PieceType.MINE, positions.get(PositionState.TO_LOSS     ), positions.get(PositionState.WIN), positions.get(PositionState.ONLY_TO_WIN)));
+			toWins            .addAll(getReachablePositions(PieceType.MINE, positions.get(PositionState.DRAW        ), positions.get(PositionState.WIN), positions.get(PositionState.ONLY_TO_WIN)));
+			toWins            .addAll(getReachablePositions(PieceType.MINE, positions.get(PositionState.ONLY_TO_WIN ), positions.get(PositionState.WIN), positions.get(PositionState.ONLY_TO_WIN)));
 			
-			Collection<Long> filteredLosses = getReachablePositions(PieceType.MINE, positions.get(PositionState.TO_LOSS), positions.get(PositionState.WIN), positions.get(PositionState.ONLY_TO_WIN));
-			positions.get(PositionState.TO_LOSS).removeAll(filteredLosses);
-			Collection<Long> filteredOlnlyToLosses = getReachablePositions(PieceType.MINE, positions.get(PositionState.ONLY_TO_LOSS), positions.get(PositionState.WIN), positions.get(PositionState.ONLY_TO_WIN));
-			positions.get(PositionState.ONLY_TO_LOSS).removeAll(filteredOlnlyToLosses);
-			
-			onlyToWins = new HashSet<Long>();
-			
-			for(Long win : getReachablePositions(PieceType.OPPONENTS, toWins, toWins))
-				if(!isReachableBy(win, positions.get(PositionState.TO_LOSS), PieceType.OPPONENTS) && !isReachableBy(win, positions.get(PositionState.ONLY_TO_LOSS), PieceType.OPPONENTS) && !isReachableBy(win, positions.get(PositionState.DRAW), PieceType.OPPONENTS))
-					onlyToWins.add(win);
-			
-			
-			for(Long draw : positions.get(PositionState.DRAW))
-				if((isReachableBy(draw, toWins, PieceType.OPPONENTS) || isReachableBy(draw, filteredLosses, PieceType.OPPONENTS) || isReachableBy(draw, filteredOlnlyToLosses, PieceType.OPPONENTS)) && !isReachableBy(draw, positions.get(PositionState.TO_LOSS), PieceType.OPPONENTS) && !isReachableBy(draw, positions.get(PositionState.ONLY_TO_LOSS), PieceType.OPPONENTS) && !isReachableBy(draw, positions.get(PositionState.DRAW), PieceType.OPPONENTS))
+			onlyToWins = new TreeSet<Long>();
+			for(long draw : positions.get(PositionState.DRAW))
+				if(toWins.containsAll(rules.getReachablePositionsBy(draw, PieceType.OPPONENTS)))
 					onlyToWins.add(draw);
 			
-			positions.get(PositionState.TO_LOSS).addAll(filteredLosses);
-			positions.get(PositionState.ONLY_TO_LOSS).addAll(filteredOlnlyToLosses);
-			positions.get(PositionState.DRAW).addAll(toWins);
 			positions.get(PositionState.DRAW).removeAll(onlyToWins);
 			positions.get(PositionState.ONLY_TO_WIN).addAll(onlyToWins);
-		} while(!onlyToWins.isEmpty());		
+			
+		} while(!onlyToWins.isEmpty());
 	}
 	
 	private void fillToWins() {
@@ -399,7 +386,7 @@ public class Evaluation {
 		if(from.size() <= to.size()) {
 			for(Long position : from)
 				if(isReachableBy(position, to, pieceType))
-					result.add(position);			
+					result.add(position);
 		} else {
 			for(Long position : to) {
 				Collection<Long> reachables = rules.getReachablePositionsBy(position, pieceType);
