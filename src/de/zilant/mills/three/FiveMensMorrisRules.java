@@ -19,6 +19,34 @@ public class FiveMensMorrisRules implements Rules {
 	
 	@Override
 	public int whatsTheCode()        { return  3; }
+	
+	@Override
+	public PieceType whoDidAMill(long from, long to) {
+		PieceType whoTheMillHas = whoHasAMill(to);
+		if(whoTheMillHas != PieceType.NONE) {
+			PieceType reachableBy = PieceType.NONE;
+			if(isPositionReachableBy(from, to, PieceType.MINE)) reachableBy = PieceType.MINE;
+			else if(isPositionReachableBy(from, to, PieceType.OPPONENTS)) reachableBy = PieceType.OPPONENTS;
+			else return PieceType.NONE;
+			
+			long diff = from ^ to;
+			
+			for(long lineMask = 0x0015; lineMask <= 0x1500000; lineMask <<= 8)
+				for(int index = 0; index < 2; index++) {
+					if(reachableBy == PieceType.OPPONENTS && (diff & lineMask) != 0) return PieceType.OPPONENTS;
+					lineMask <<= 1;
+					if(reachableBy == PieceType.MINE && (diff & lineMask) != 0) return PieceType.MINE;
+					lineMask   <<= 5;
+				}
+			
+			for(long columnMask : verticalMillsMasks) {
+				if(reachableBy == PieceType.OPPONENTS && (diff & columnMask) != 0) return PieceType.OPPONENTS;
+				if(reachableBy == PieceType.MINE && (diff & (columnMask   <<= 1)) != 0) return PieceType.MINE;			
+			}
+		}
+		
+		return PieceType.NONE;
+	}
 
 	@Override
 	public List<Map<PositionState, Set<Long>>> getPositionsTree() {

@@ -76,11 +76,8 @@ public class Evaluation {
 	
 	private int getMin(long position, Map<PositionState, Set<Long>> positions) {
 		int state = PositionState.WIN.VALUE + 1;
-		PieceType whoseMillIs = rules.whoHasAMill(position);
 		for(long reachable : rules.getReachablePositionsBy(position, PieceType.OPPONENTS)) {
-			PieceType whoseMillNowIs = rules.whoHasAMill(reachable);
-			PieceType whoBlockedIs = rules.whoIsBlocked(reachable);
-			if(whoBlockedIs == PieceType.MINE || positions.get(PositionState.LOSS).contains(reachable) && (whoseMillIs == PieceType.MINE && whoseMillNowIs == PieceType.BOTH || whoseMillIs == PieceType.NONE && whoseMillNowIs == PieceType.OPPONENTS))
+			if(rules.whoIsBlocked(reachable) == PieceType.MINE || positions.get(PositionState.LOSS).contains(reachable) && rules.whoDidAMill(position, reachable) == PieceType.OPPONENTS)
 				return PositionState.ONLY_TO_LOSS.VALUE;
 			else if(minimaxStack.contains(reachable)) {
 				if(PositionState.DRAW.VALUE < state)
@@ -221,10 +218,8 @@ public class Evaluation {
 		System.out.println("fillOnlyToLosses start");
 		Collection<Long> newLosses = new TreeSet<Long>();
 		for(long newLoss : getReachablePositions(PieceType.OPPONENTS, positions.get(PositionState.DRAW), positions.get(PositionState.LOSS))) {
-			PieceType milled = rules.whoHasAMill(newLoss);
 			for(long reachable : rules.getReachablePositionsBy(newLoss, PieceType.OPPONENTS)) {
-				PieceType newLossMilled = rules.whoHasAMill(reachable);
-				if(rules.whoIsBlocked(reachable) == PieceType.MINE || milled == PieceType.NONE && newLossMilled == PieceType.OPPONENTS || milled == PieceType.MINE && newLossMilled == PieceType.BOTH) {
+				if(rules.whoIsBlocked(reachable) == PieceType.MINE || rules.whoDidAMill(newLoss, reachable) == PieceType.OPPONENTS) {
 					newLosses.add(newLoss);
 					break;
 				}

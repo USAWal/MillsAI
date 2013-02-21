@@ -33,6 +33,19 @@ public class ThreeMensMorrisRules implements Rules {
 	public int whatsTheMaxOfPieces() { return 3; }
 	
 	@Override
+	public PieceType whoDidAMill(long from, long to) {
+		switch (whoHasAMill(to)) {
+		case MINE:      return isPositionReachableBy(from, to, PieceType.MINE     ) ? PieceType.MINE      : PieceType.NONE;
+		case OPPONENTS: return isPositionReachableBy(from, to, PieceType.OPPONENTS) ? PieceType.OPPONENTS : PieceType.NONE;
+		case BOTH:
+			if     (isPositionReachableBy(from, to, PieceType.MINE     )) return PieceType.MINE     ;
+			else if(isPositionReachableBy(from, to, PieceType.OPPONENTS)) return PieceType.OPPONENTS;
+			else                                                          return PieceType.NONE     ;
+		default:        return PieceType.NONE;
+		}
+	}
+	
+	@Override
 	public List<Map<PositionState, Set<Long>>> getPositionsTree() {
 		if(positionsTree != null) return positionsTree;
 		positionsTree = new ArrayList<Map<PositionState,Set<Long>>>();
