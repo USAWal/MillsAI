@@ -88,7 +88,7 @@ public class FiveMensMorrisRules implements Rules {
 					positions.get(PositionState.WIN).add(position);
 					positions.get(PositionState.WIN).add(symmetricPosition);	
 				}
-				if(myPiecesNumber != 3 || opponentsPiecesNumber != 3) {
+				if(opponentsPiecesNumber != 3) {
 					positions.get(PositionState.DRAW).add(position);
 					positions.get(PositionState.DRAW).add(symmetricPosition);					
 				}

@@ -23,9 +23,10 @@ public class Evaluation {
 		this.positions = rules.getPositionsTree().get(rules.getPositionsTree().size() - 1);
 		evaluate();
 		if(rules.getPositionsTree().size() > 1) {
-			for(int index = rules.getPositionsTree().size() - 2; index >= rules.getPositionsTree().size() - rules.whatsTheMaxOfPieces() + 2; index--) {
+			for(int index = rules.getPositionsTree().size() - 2; index >= rules.getPositionsTree().size() - rules.whatsTheMaxOfPieces() + 2 - 1; index--) {
 				this.positions = rules.getPositionsTree().get(index);
 				Map<PositionState, Set<Long>> evaluations = new EnumMap<PositionState, Set<Long>>(PositionState.class);
+				deferred_evaluations                      = new EnumMap<PositionState, Set<Long>>(PositionState.class);
 				for(long position : positions.get(PositionState.DRAW)) {
 					PieceType whoseTheMill = rules.whoHasAMill(position);
 					if(whoseTheMill == PieceType.MINE || whoseTheMill == PieceType.BOTH) {
@@ -50,6 +51,29 @@ public class Evaluation {
 							evaluatedPositions.add(position);
 						}
 							
+					} else if (whoseTheMill == PieceType.OPPONENTS) {
+						Collection<Long> reducedPositions = removePiece(PieceType.MINE, position);
+						int state = PositionState.WIN.VALUE + 1;
+						for(long reducedPosition : reducedPositions) {
+							minimaxStack.push(reducedPosition);
+							int newState = getMax(reducedPosition, rules.getPositionsTree().get(index + rules.whatsTheMaxOfPieces() - 2));							
+							minimaxStack.pop();
+							if(newState < state)
+								state = newState;
+						}
+						if(state <= PositionState.LOSS.VALUE || state >= PositionState.WIN.VALUE)
+							System.out.println("Connected position [" + position + "] evaluated [" + state + "] not in evaluation range");
+						else if(state < PositionState.TO_LOSS.VALUE) {
+							PositionState pState = PositionState.getStateOf(state);
+							Set<Long> evaluatedPositions = deferred_evaluations.get(pState);
+							if(evaluatedPositions == null) {
+								evaluatedPositions = new TreeSet<Long>();
+								deferred_evaluations.put(pState, evaluatedPositions);
+							}
+							for(long reachable : rules.getReachablePositionsBy(position, PieceType.OPPONENTS))
+								if(rules.whoDidAMill(reachable, position) == PieceType.OPPONENTS)
+									evaluatedPositions.add(reachable);
+						}
 					}
 				}
 				for(PositionState state : evaluations.keySet()) {
@@ -144,16 +168,28 @@ public class Evaluation {
 		return result;
 	}
 	
+	private void addDeferredEvaluations(PositionState state) {
+			Set<Long> statedPositions = deferred_evaluations.get(state);
+			if(statedPositions == null) return;
+			statedPositions.retainAll(positions.get(PositionState.DRAW));
+			positions.get(PositionState.DRAW).removeAll(statedPositions);
+			positions.get(state).addAll(statedPositions);
+	}
+	
 	private void evaluate() {
+		addDeferredEvaluations(PositionState.ONLY_TO_LOSS);
 		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Evaluate:\tonly to losses.");
 		fillOnlyToLosses();
 		
+		addDeferredEvaluations(PositionState.TO_LOSS);
 		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Evaluate:\talso to losses");
 		fillToLosses();
 		
+		addDeferredEvaluations(PositionState.ONLY_TO_WIN);
 		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Evaluate:\tonly to wins.");
 		fillOnlyToWins();
 
+		addDeferredEvaluations(PositionState.TO_WIN);
 		Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).info("Evaluate:\talso to wins.");
 		fillToWins();
 		
@@ -204,7 +240,7 @@ public class Evaluation {
 				data  = new Data("tmp/database", fiveMensMorrisRules)                ;
 				new Evaluation(fiveMensMorrisRules)                                  ;
 				//for(Map<PositionState, Set<Long>> positions : fiveMensMorrisRules.getPositionsTree())
-				for(int index = 1; index <= 3; index++)
+				for(int index = 1; index <= 4; index++)
 					data.addPosition(fiveMensMorrisRules.getPositionsTree().get(fiveMensMorrisRules.getPositionsTree().size() - index));//	data.addPosition(positions);
 			} finally {
 				data.release();
@@ -228,6 +264,7 @@ public class Evaluation {
 		System.out.println("newLosses size is [" + newLosses.size() + "]");
 		positions.get(PositionState.DRAW).removeAll(newLosses);
 		positions.get(PositionState.ONLY_TO_LOSS).addAll(newLosses);
+		newLosses = positions.get(PositionState.ONLY_TO_LOSS);
 		
 		while(!newLosses.isEmpty()) {
 			Set<Long> onlyToLosses = new HashSet<Long>();
@@ -407,6 +444,7 @@ public class Evaluation {
 		return false;
 	}
 	
+	private Map<PositionState, Set<Long>> deferred_evaluations = new EnumMap<PositionState, Set<Long>>(PositionState.class);
 	private Map<PositionState, Set<Long>> positions;
 	private Map<Long, PositionState>      minimaxPositions;
 	private Rules                         rules;
