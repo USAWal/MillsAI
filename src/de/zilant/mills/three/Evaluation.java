@@ -99,6 +99,7 @@ public class Evaluation {
 	}
 	
 	private int getMin(long position, Map<PositionState, Set<Long>> positions) {
+		System.out.println("getMin: position is [" + position + ", minimaxStack.size is [" + minimaxStack.size() + "]");
 		int state = PositionState.WIN.VALUE + 1;
 		for(long reachable : rules.getReachablePositionsBy(position, PieceType.OPPONENTS)) {
 			if(rules.whoIsBlocked(reachable) == PieceType.MINE || positions.get(PositionState.LOSS).contains(reachable) && rules.whoDidAMill(position, reachable) == PieceType.OPPONENTS)
@@ -118,22 +119,27 @@ public class Evaluation {
 	}
 	
 	private int getMax(long position, Map<PositionState, Set<Long>> positions) {
+		System.out.println("getMax: position is [" + position + ", minimaxStack.size is [" + minimaxStack.size() + "]");
 		int state = PositionState.LOSS.VALUE - 1;
 		for(long reachable : rules.getReachablePositionsBy(position, PieceType.MINE)) {
 			for(int rawState = PositionState.WIN.VALUE; rawState > state; rawState--)
-				if(positions.get(PositionState.getStateOf(rawState)).contains(reachable))
-					state = rawState;
-			if(state == PositionState.LOSS.VALUE) {
-				PositionState previouslySavedState = minimaxPositions.get(reachable);
-				if(previouslySavedState != null) return previouslySavedState.VALUE;
-				else if (minimaxStack.contains(reachable)) state = PositionState.DRAW.VALUE;
-				else {
-					minimaxStack.push(reachable);
-					state = getMin(reachable, positions);
-					minimaxStack.pop();
+				if(positions.get(PositionState.getStateOf(rawState)).contains(reachable)) {
+					if(rawState == PositionState.WIN.VALUE && (rules.whoDidAMill(position, reachable) == PieceType.MINE || rules.whoIsBlocked(reachable) == PieceType.OPPONENTS))
+						return PositionState.ONLY_TO_WIN.VALUE;
+					else if(rawState == PositionState.WIN.VALUE || rawState == PositionState.LOSS.VALUE) {
+						PositionState previouslySavedState = minimaxPositions.get(reachable);
+						if(previouslySavedState != null && previouslySavedState.VALUE > state) state = previouslySavedState.VALUE;
+						else if (minimaxStack.contains(reachable) && PositionState.DRAW.VALUE > state) state = PositionState.DRAW.VALUE;
+						else {
+							minimaxStack.push(reachable);
+							int value = getMin(reachable, positions);
+							if(value > state) state = value;
+							minimaxStack.pop();
+						}
+						minimaxPositions.put(reachable, PositionState.getStateOf(state));						
+					} else
+						state = rawState;
 				}
-				minimaxPositions.put(reachable, PositionState.getStateOf(state));
-			}
 		}
 		return state;
 	}
@@ -209,6 +215,7 @@ public class Evaluation {
 							evaluatedPositions = new TreeSet<Long>();
 							evaluations.put(pState, evaluatedPositions);
 						}
+
 						evaluatedPositions.add(position);
 					}
 				}

@@ -22,27 +22,23 @@ public class FiveMensMorrisRules implements Rules {
 	
 	@Override
 	public PieceType whoDidAMill(long from, long to) {
-		PieceType whoTheMillHas = whoHasAMill(to);
-		if(whoTheMillHas != PieceType.NONE) {
-			PieceType reachableBy = PieceType.NONE;
-			if(isPositionReachableBy(from, to, PieceType.MINE)) reachableBy = PieceType.MINE;
-			else if(isPositionReachableBy(from, to, PieceType.OPPONENTS)) reachableBy = PieceType.OPPONENTS;
-			else return PieceType.NONE;
-			
-			long diff = from ^ to;
-			
-			for(long lineMask = 0x0015; lineMask <= 0x1500000; lineMask <<= 8)
-				for(int index = 0; index < 2; index++) {
-					if(reachableBy == PieceType.OPPONENTS && (diff & lineMask) != 0) return PieceType.OPPONENTS;
-					lineMask <<= 1;
-					if(reachableBy == PieceType.MINE && (diff & lineMask) != 0) return PieceType.MINE;
-					lineMask   <<= 5;
-				}
-			
-			for(long columnMask : verticalMillsMasks) {
-				if(reachableBy == PieceType.OPPONENTS && (diff & columnMask) != 0) return PieceType.OPPONENTS;
-				if(reachableBy == PieceType.MINE && (diff & (columnMask   <<= 1)) != 0) return PieceType.MINE;			
+		PieceType reachableBy = PieceType.NONE;
+		if(isPositionReachableBy(from, to, PieceType.MINE)) reachableBy = PieceType.MINE;
+		else if(isPositionReachableBy(from, to, PieceType.OPPONENTS)) reachableBy = PieceType.OPPONENTS;
+		else return PieceType.NONE;
+		
+		for(long lineMask = 0x0015; lineMask <= 0x1500000; lineMask <<= 8)
+			for(int index = 0; index < 2; index++) {
+				if(reachableBy == PieceType.OPPONENTS && (from & lineMask) != lineMask && (to & lineMask) == lineMask) return PieceType.OPPONENTS;
+				lineMask <<= 1;
+				if(reachableBy == PieceType.MINE      && (from & lineMask) != lineMask && (to & lineMask) == lineMask) return PieceType.MINE;
+				lineMask   <<= 5;
 			}
+		
+		for(long columnMask : verticalMillsMasks) {
+			if(reachableBy == PieceType.OPPONENTS && (from & columnMask) != columnMask && (to & columnMask) == columnMask) return PieceType.OPPONENTS;
+			columnMask <<= 1;
+			if(reachableBy == PieceType.MINE      && (from & columnMask) != columnMask && (to & columnMask) == columnMask) return PieceType.MINE;			
 		}
 		
 		return PieceType.NONE;
