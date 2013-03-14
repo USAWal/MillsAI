@@ -2,6 +2,7 @@ package de.zilant.mills.three;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -48,6 +49,7 @@ public class Data {
 	public void initialize() { dbQueue.execute(initialization); }
 	
 	public void clean() {
+		cachedPositions.clear();
 		dbQueue.execute(new SQLiteJob<Object>() {
 			@Override
 			protected Object job(SQLiteConnection connection) throws Throwable {
@@ -91,10 +93,15 @@ public class Data {
 				return null;
 			}
 			
+			protected void jobFinished(Object result) throws Throwable {
+				cachedPositions.clear();
+			};
+			
 		});
 	}
 	
 	public List<Long> getPositionsByState(final PositionState state) {
+		if(cachedPositions.containsKey(state)) return cachedPositions.get(state);
 		try {
 			return dbQueue.execute(new SQLiteJob<List<Long>>() {
 				@Override
@@ -102,7 +109,8 @@ public class Data {
 					List<Long> result = new ArrayList<Long>();
 					SQLiteStatement statement = connection.prepare(SELECT_POSITIONS).bind(1, rules.whatsTheCode()).bind(2, state.VALUE);
 					while(statement.step())
-						result.add(Long.valueOf(statement.columnLong(0)));		
+						result.add(Long.valueOf(statement.columnLong(0)));	
+					cachedPositions.put(state, result);
 					return result;
 				}
 			}).get();
@@ -123,6 +131,7 @@ public class Data {
 	private       SQLiteQueue          dbQueue;
 	private final Rules                  rules;
 	private final SQLiteJob<Object> initialization;
+	private Map<PositionState, List<Long>> cachedPositions = new HashMap<PositionState, List<Long>>();
 	
 	private static final String BEGIN_TRANSACTION              = "BEGIN DEFERRED TRANSACTION;";
 	private static final String END_TRANSACTION                = "END            TRANSACTION;";
